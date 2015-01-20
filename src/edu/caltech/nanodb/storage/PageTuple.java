@@ -11,6 +11,7 @@ import edu.caltech.nanodb.relations.ColumnType;
 import edu.caltech.nanodb.relations.Schema;
 import edu.caltech.nanodb.relations.SQLDataType;
 import edu.caltech.nanodb.relations.Tuple;
+import edu.caltech.nanodb.storage.heapfile.DataPage;
 
 
 /**
@@ -487,9 +488,7 @@ public abstract class PageTuple implements Tuple {
      * @param iCol the index of the column to set to <tt>NULL</tt>
      */
     private void setNullColumnValue(int iCol) {
-        /* TODO:  Implement!
-         *
-         * The column's flag in the tuple's null-bitmap must be set to true.
+        /* The column's flag in the tuple's null-bitmap must be set to true.
          * Also, the data occupied by the column's value must be removed.
          * There are many helpful methods that can be used for this method:
          *  - isNullValue() and setNullFlag() to check/change the null-bitmap
@@ -509,7 +508,20 @@ public abstract class PageTuple implements Tuple {
          * properly as well.  (Note that columns whose value is NULL will have
          * the special NULL_OFFSET constant as their offset in the tuple.)
          */
-        throw new UnsupportedOperationException("TODO:  Implement!");
+
+        // Check to see if column is NULL, then removes space if not NULL
+        if (!isNullValue(iCol)) {
+            setNullFlag(iCol, true);
+
+            // Determine the offset and number of bytes, then deletes
+            ColumnType colType = schema.getColumnInfo(iCol).getType();
+            int colOffset = valueOffsets[iCol];
+            int colSize = getColumnValueSize(colType, colOffset);
+            DataPage.deleteTupleDataRange(dbPage, colOffset, colSize);
+
+            // Update valueOffsets array
+            computeValueOffsets();
+        }
     }
 
 
@@ -554,7 +566,15 @@ public abstract class PageTuple implements Tuple {
          * Finally, once you have made space for the new column value, you can
          * write the value itself using the writeNonNullValue() method.
          */
-        throw new UnsupportedOperationException("TODO:  Implement!");
+        if (isNullValue(colIndex)) {
+            setNullFlag(colIndex, false);
+
+            // Determine the offset and number of bytes, then deletes
+            ColumnType colType = schema.getColumnInfo(colIndex).getType();
+            int colOffset = valueOffsets[colIndex];
+            int colSize = getColumnValueSize(colType, colOffset);
+
+        }
     }
 
 

@@ -512,12 +512,11 @@ public abstract class PageTuple implements Tuple {
         // Check to see if column is NULL, then removes space if not NULL
         if (!isNullValue(iCol)) {
             setNullFlag(iCol, true);
-
             // Determine the offset and number of bytes, then deletes
             ColumnType colType = schema.getColumnInfo(iCol).getType();
             int colOffset = valueOffsets[iCol];
             int colSize = getColumnValueSize(colType, colOffset);
-            DataPage.deleteTupleDataRange(dbPage, colOffset, colSize);
+            DataPage.deleteTupleDataRange(getDBPage(), colOffset, colSize);
 
             // Update valueOffsets array
             computeValueOffsets();
@@ -566,15 +565,47 @@ public abstract class PageTuple implements Tuple {
          * Finally, once you have made space for the new column value, you can
          * write the value itself using the writeNonNullValue() method.
          */
-        if (isNullValue(colIndex)) {
-            setNullFlag(colIndex, false);
 
-            // Determine the offset and number of bytes, then deletes
-            ColumnType colType = schema.getColumnInfo(colIndex).getType();
-            int colOffset = valueOffsets[colIndex];
-            int colSize = getColumnValueSize(colType, colOffset);
+        setNullFlag(colIndex, false);
 
+        // Determine the offset and number of bytes of the old column
+        ColumnType colType = schema.getColumnInfo(colIndex).getType();
+        int colOffset = valueOffsets[colIndex];
+        int colSize = getColumnValueSize(colType, colOffset);
+
+        // If the old column type is not VARCHAR the number of bytes changed is
+        // the same and so we can just write the new value in the old offset
+        if (colType.getBaseType() != SQLDataType.VARCHAR) {
+            writeNonNullValue(getDBPage(), colOffset, colType, value);
         }
+        // If the old column type is VARCHAR, we want to change the size of
+        // the column to match the new value
+        else {
+
+            // Get the size of the value
+            String strValue = TypeConverter.getStringValue(value);
+            int dataLength = strValue.length();
+            int new_len = getStorageSize(colType, dataLength);
+
+            // If the new size is less than the old size, we shrink the
+            // size of the column
+            if (new_len <= colSize) {
+                deleteTupleDataRange(colOffset, colSize - new_len);
+                writeNonNullValue(getDBPage(), colOffset + colSize - new_len,
+                        colType, value);
+            }
+            // If the new size of greater than the old size, we extend
+            // the size of the column
+            else {
+                insertTupleDataRange(colOffset, new_len - colSize);
+                writeNonNullValue(getDBPage(), colOffset - (new_len - colSize),
+                        colType, value);
+            }
+
+            // Recompute value offsets
+            computeValueOffsets();
+        }
+
     }
 
 

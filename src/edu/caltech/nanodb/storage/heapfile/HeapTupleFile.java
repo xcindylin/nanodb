@@ -209,6 +209,7 @@ public class HeapTupleFile implements TupleFile {
             while (nextSlot < numSlots) {
                 int nextOffset = DataPage.getSlotValue(dbPage, nextSlot);
                 if (nextOffset != DataPage.EMPTY_SLOT) {
+                    tup.unpin();
                     return new HeapFilePageTuple(schema, dbPage, nextSlot,
                                                  nextOffset);
                 }
@@ -367,6 +368,7 @@ public class HeapTupleFile implements TupleFile {
 
         DBPage dbPage = ptup.getDBPage();
         DataPage.sanityCheck(dbPage);
+
     }
 
 
@@ -384,6 +386,7 @@ public class HeapTupleFile implements TupleFile {
         DataPage.deleteTuple(dbPage, ptup.getSlot());
 
         DataPage.sanityCheck(dbPage);
+
     }
 
     @Override

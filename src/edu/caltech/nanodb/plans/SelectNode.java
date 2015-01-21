@@ -97,6 +97,9 @@ public abstract class SelectNode extends PlanNode {
             // If the last tuple in the file (or chain of nodes) did not satisfy the
             // predicate, then the selection process is over, so set the done flag and
             // return null.
+            if (currentTuple != null) {
+                currentTuple.unpin();
+            }
             if (currentTuple == null) {
                 done = true;
                 return null;

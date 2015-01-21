@@ -218,7 +218,6 @@ public class InsertCommand extends QueryCommand {
             Tuple newTuple = tupleFile.addTuple(tuple);
             // unpin tuples after inserting
             newTuple.unpin();
-            tupleFile.
             eventDispatch.fireAfterRowInserted(tableInfo, newTuple);
         }
         catch (IOException e) {

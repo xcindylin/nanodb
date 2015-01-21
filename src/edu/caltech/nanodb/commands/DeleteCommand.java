@@ -78,7 +78,6 @@ public class DeleteCommand extends QueryCommand {
             eventDispatch.fireBeforeRowDeleted(tableInfo, tuple);
             tupleFile.deleteTuple(tuple);
             eventDispatch.fireAfterRowDeleted(tableInfo, oldTuple);
-            tuple.unpin();
         }
 
         public void finish() {

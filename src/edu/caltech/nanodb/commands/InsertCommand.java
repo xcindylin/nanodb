@@ -75,9 +75,9 @@ public class InsertCommand extends QueryCommand {
         public void process(Tuple tuple) throws IOException {
             eventDispatch.fireBeforeRowInserted(tableInfo, tuple);
             Tuple newTuple = tupleFile.addTuple(tuple);
+            eventDispatch.fireAfterRowInserted(tableInfo, newTuple);
             // Unpin tuple after inserting
             newTuple.unpin();
-            eventDispatch.fireAfterRowInserted(tableInfo, newTuple);
 
         }
 
@@ -215,9 +215,9 @@ public class InsertCommand extends QueryCommand {
 
             eventDispatch.fireBeforeRowInserted(tableInfo, tuple);
             Tuple newTuple = tupleFile.addTuple(tuple);
-            // unpin tuples after inserting
-            newTuple.unpin();
             eventDispatch.fireAfterRowInserted(tableInfo, newTuple);
+            // unpin tuple after inserting
+            newTuple.unpin();
         }
         catch (IOException e) {
             throw new ExecutionException("Couldn't insert row into table.", e);

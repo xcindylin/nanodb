@@ -335,6 +335,9 @@ public class HeapTupleFile implements TupleFile {
 
         DataPage.sanityCheck(dbPage);
 
+        // Unpin page after adding tuple
+        dbPage.unpin();
+
         return pageTup;
     }
 
@@ -367,6 +370,7 @@ public class HeapTupleFile implements TupleFile {
 
         DBPage dbPage = ptup.getDBPage();
         DataPage.sanityCheck(dbPage);
+
     }
 
 
@@ -384,6 +388,7 @@ public class HeapTupleFile implements TupleFile {
         DataPage.deleteTuple(dbPage, ptup.getSlot());
 
         DataPage.sanityCheck(dbPage);
+
     }
 
     @Override

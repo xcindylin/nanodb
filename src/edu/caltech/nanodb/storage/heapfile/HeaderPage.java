@@ -68,6 +68,12 @@ public class HeaderPage {
      */
     public static final int OFFSET_SCHEMA_START = 6;
 
+    /**
+     *
+     */
+    public static int firstFreeDataPageNo;
+
+    public static int lastFreeDataPageNo;
 
     /**
      * This helper method simply verifies that the data page provided to the
@@ -167,5 +173,41 @@ public class HeaderPage {
     public static int getStatsOffset(DBPage dbPage) {
         verifyIsHeaderPage(dbPage);
         return OFFSET_SCHEMA_START + getSchemaSize(dbPage);
+    }
+
+    /**
+     * author - Freestyle
+     * @param dbPage
+     * @return
+     */
+    public static int getNextFreeDataPageNo(DBPage dbPage) {
+        return dbPage.readShort(dbPage.getPageSize() - 3);
+    }
+
+    /**
+     * author - Freestyle
+     * @param dbPage
+     * @return
+     */
+    public static int getLastFreeDataPageNo(DBPage dbPage) {
+        return dbPage.readShort(dbPage.getPageSize() - 5);
+    }
+
+    /**
+     * author - Freestyle
+     * @param dbPage
+     * @return
+     */
+    public static void setNextFreeDataPageNo(DBPage dbPage, int pageNo) {
+        dbPage.writeShort(dbPage.getPageSize() - 3, pageNo);
+    }
+
+    /**
+     * author - Freestyle
+     * @param dbPage
+     * @return
+     */
+    public static void setLastFreeDataPageNo(DBPage dbPage, int pageNo) {
+        dbPage.writeShort(dbPage.getPageSize() - 5, pageNo);
     }
 }

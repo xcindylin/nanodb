@@ -41,7 +41,6 @@ public class DataPage {
      */
     public static final int EMPTY_SLOT = 0;
 
-
     /**
      * Initialize a newly allocated data page.  Currently this involves setting
      * the number of slots to 0.  There is no other internal structure in data
@@ -51,6 +50,8 @@ public class DataPage {
      */
     public static void initNewPage(DBPage dbPage) {
         setNumSlots(dbPage, 0);
+        // Freestyle
+
     }
 
 
@@ -220,7 +221,8 @@ public class DataPage {
      * @return the index where the tuple data ends in this data page
      */
     public static int getTupleDataEnd(DBPage dbPage) {
-        return dbPage.getPageSize();
+        // Subtract 4 to keep space for prev and next pointer - Freestyle
+        return dbPage.getPageSize() - 4;
     }
 
 
@@ -625,5 +627,41 @@ public class DataPage {
         if (isEmpty) {
             setNumSlots(dbPage, numSlots);
         }
+    }
+
+    /**
+     * author - Freestyle
+     * @param dbPage
+     * @return
+     */
+    public static int getNextFreeDataPageNo(DBPage dbPage) {
+        return dbPage.readShort(dbPage.getPageSize() - 3);
+    }
+
+    /**
+     * author - Freestyle
+     * @param dbPage
+     * @return
+     */
+    public static int getPrevFreeDataPageNo(DBPage dbPage) {
+        return dbPage.readShort(dbPage.getPageSize() - 5);
+    }
+
+    /**
+     * author - Freestyle
+     * @param dbPage
+     * @return
+     */
+    public static void setNextFreeDataPageNo(DBPage dbPage, int pageNo) {
+        dbPage.writeShort(dbPage.getPageSize() - 3, pageNo);
+    }
+
+    /**
+     * author - Freestyle
+     * @param dbPage
+     * @return
+     */
+    public static void setPrevFreeDataPageNo(DBPage dbPage, int pageNo) {
+        dbPage.writeShort(dbPage.getPageSize() - 5, pageNo);
     }
 }

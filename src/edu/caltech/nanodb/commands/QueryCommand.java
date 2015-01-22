@@ -108,7 +108,6 @@ public abstract class QueryCommand extends Command {
 
                 TupleProcessor processor = getTupleProcessor();
                 EvalStats stats = QueryEvaluator.executePlan(plan, processor);
-
                 // Print out the evaluation statistics.
 
                 out.printf("%s took %f sec to evaluate.%n", queryType,

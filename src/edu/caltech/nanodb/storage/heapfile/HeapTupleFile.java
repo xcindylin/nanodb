@@ -371,6 +371,7 @@ public class HeapTupleFile implements TupleFile {
         DBPage dbPage = ptup.getDBPage();
         DataPage.sanityCheck(dbPage);
 
+        //dbPage.unpin();
     }
 
 

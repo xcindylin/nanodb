@@ -218,6 +218,8 @@ public class InsertCommand extends QueryCommand {
             eventDispatch.fireAfterRowInserted(tableInfo, newTuple);
             // unpin tuple after inserting
             newTuple.unpin();
+
+
         }
         catch (IOException e) {
             throw new ExecutionException("Couldn't insert row into table.", e);

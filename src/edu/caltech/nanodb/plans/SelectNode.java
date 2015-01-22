@@ -21,12 +21,10 @@ public abstract class SelectNode extends PlanNode {
     /** The current tuple that the node is selecting. */
     protected Tuple currentTuple;
 
-    /** The previous tuple node was selecting. */
-    protected Tuple prevTuple;
-
     /** True if we have finished scanning or pulling tuples from children. */
     private boolean done;
 
+    protected Tuple prevTuple;
 
     /**
      * Constructs a SelectNode that scans a file for tuples.
@@ -94,8 +92,13 @@ public abstract class SelectNode extends PlanNode {
         // Continue to advance the current tuple until it is selected by the
         // predicate.
         do {
-            prevTuple = currentTuple;
-            advanceCurrentTuple();
+            Tuple prevTuple = currentTuple;
+
+            advanceCurrentTuple(); // currentTuple = nextTuple;
+
+            // Unpin tuples that did not satisfy predicate
+            if (prevTuple != null)
+                prevTuple.unpin();
 
             // If the last tuple in the file (or chain of nodes) did not satisfy the
             // predicate, then the selection process is over, so set the done flag and
@@ -106,12 +109,9 @@ public abstract class SelectNode extends PlanNode {
                 return null;
             }
 
-            // Unpin tuples that did not satisfy predicate
-            if (prevTuple != null)
-                prevTuple.unpin();
+
         }
         while (!isTupleSelected(currentTuple));
-
         // The current tuple now satisfies the predicate, so return it.
         return currentTuple;
     }

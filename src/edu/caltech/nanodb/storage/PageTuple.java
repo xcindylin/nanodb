@@ -510,6 +510,9 @@ public abstract class PageTuple implements Tuple {
          */
 
         // Check to see if column is NULL, then removes space if not NULL
+
+
+
         if (!isNullValue(iCol)) {
             setNullFlag(iCol, true);
             // Determine the offset and number of bytes, then deletes
@@ -568,15 +571,60 @@ public abstract class PageTuple implements Tuple {
 
         setNullFlag(colIndex, false);
 
-        // Determine the offset and number of bytes of the old column
         ColumnType colType = schema.getColumnInfo(colIndex).getType();
-        int colOffset = valueOffsets[colIndex];
-        int colSize = getColumnValueSize(colType, colOffset);
+        int colOffset, colSize;
+
+        if(isNullValue(colIndex)){
+            int currIndex = colIndex;
+
+            while (isNullValue(currIndex) && currIndex > 0){
+                currIndex--;
+            }
+
+            if(currIndex == 0 && isNullValue(currIndex)) {
+                colOffset = getDataStartOffset();
+            }
+            else {
+                colOffset = valueOffsets[currIndex];
+                ColumnType prevType = schema.getColumnInfo(currIndex).getType();
+                int shift = getColumnValueSize(prevType, colOffset);
+                colOffset += shift;
+            }
+
+            int dataLength = 0;
+            if (colType.getBaseType() == SQLDataType.VARCHAR) {
+                String strValue = TypeConverter.getStringValue(value);
+                dataLength = strValue.length();
+            }
+            colSize = getStorageSize(colType, dataLength);
+            pageOffset -= colSize;
+            insertTupleDataRange(colOffset, colSize);
+
+//            System.out.format("\nColIndex: %d, currIndex: %d, colOffset: %d, pageOffset: %d, written to: %d, new size: %d\n",
+//                    colIndex, currIndex, colOffset, pageOffset, (colOffset-colSize), colSize);
+//            System.out.format("pageOffset: %d, datastart: %d\n", pageOffset, getDataStartOffset());
+
+
+            writeNonNullValue(getDBPage(), colOffset - colSize, colType, value);
+
+            computeValueOffsets();
+            return;
+        }
+
+        // Determine the offset and number of bytes of the old column
+
+        colOffset = valueOffsets[colIndex];
+        colSize = getColumnValueSize(colType, colOffset);
+        System.out.println(colSize);
+
 
         // If the old column type is not VARCHAR the number of bytes changed is
         // the same and so we can just write the new value in the old offset
         if (colType.getBaseType() != SQLDataType.VARCHAR) {
             writeNonNullValue(getDBPage(), colOffset, colType, value);
+
+            // Recompute value offsets
+            computeValueOffsets();
         }
         // If the old column type is VARCHAR, we want to change the size of
         // the column to match the new value
@@ -593,6 +641,7 @@ public abstract class PageTuple implements Tuple {
                 deleteTupleDataRange(colOffset, colSize - new_len);
                 writeNonNullValue(getDBPage(), colOffset + colSize - new_len,
                         colType, value);
+                pageOffset += colSize - new_len;
             }
             // If the new size of greater than the old size, we extend
             // the size of the column
@@ -600,12 +649,12 @@ public abstract class PageTuple implements Tuple {
                 insertTupleDataRange(colOffset, new_len - colSize);
                 writeNonNullValue(getDBPage(), colOffset - (new_len - colSize),
                         colType, value);
+                pageOffset -= (new_len - colSize);
             }
 
             // Recompute value offsets
             computeValueOffsets();
         }
-
     }
 
 

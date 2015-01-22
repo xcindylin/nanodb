@@ -521,6 +521,8 @@ public abstract class PageTuple implements Tuple {
             int colSize = getColumnValueSize(colType, colOffset);
             DataPage.deleteTupleDataRange(getDBPage(), colOffset, colSize);
 
+            pageOffset += colSize;
+
             // Update valueOffsets array
             computeValueOffsets();
         }

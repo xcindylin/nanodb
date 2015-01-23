@@ -1158,7 +1158,7 @@ public class DBPage implements Pinnable {
      */
     public String getChangesAsString() {
         if (!dirty)
-            throw new IllegalStateException("Page is not dirty");
+            throw new IllegalStateException("Page is not nextdirty");
 
         StringBuilder buf = new StringBuilder();
 

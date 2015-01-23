@@ -632,7 +632,7 @@ public class DataPage {
     /**
      * author - Freestyle
      * @param dbPage
-     * @return
+     * @return The pointer to the next page with Free data
      */
     public static short getNextFreeDataPageNo(DBPage dbPage) {
         return dbPage.readShort(dbPage.getPageSize() - 3);
@@ -641,7 +641,7 @@ public class DataPage {
     /**
      * author - Freestyle
      * @param dbPage
-     * @return
+     * Sets the pointer to the next page with free data
      */
     public static void setNextFreeDataPageNo(DBPage dbPage, int pageNo) {
         dbPage.writeShort(dbPage.getPageSize() - 3, pageNo);

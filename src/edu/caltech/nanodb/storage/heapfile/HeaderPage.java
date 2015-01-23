@@ -172,7 +172,7 @@ public class HeaderPage {
     /**
      * author - Freestyle
      * @param dbPage
-     * @return
+     * @return short of the next free data page number
      */
     public static short getNextFreeDataPageNo(DBPage dbPage) {
         return dbPage.readShort(dbPage.getPageSize() - 3);
@@ -181,7 +181,7 @@ public class HeaderPage {
     /**
      * author - Freestyle
      * @param dbPage
-     * @return
+     * @return last free data page no
      */
     public static short getTailFreeDataPageNo(DBPage dbPage) {
         return dbPage.readShort(dbPage.getPageSize() - 5);
@@ -190,7 +190,7 @@ public class HeaderPage {
     /**
      * author - Freestyle
      * @param dbPage
-     * @return
+     * @return Sets the next Free Data Page pointer
      */
     public static void setNextFreeDataPageNo(DBPage dbPage, int pageNo) {
         dbPage.writeShort(dbPage.getPageSize() - 3, pageNo);
@@ -199,7 +199,7 @@ public class HeaderPage {
     /**
      * author - Freestyle
      * @param dbPage
-     * @return
+     * @return Sets the tail Free Data Page pointer
      */
     public static void setTailFreeDataPageNo(DBPage dbPage, int pageNo) {
         dbPage.writeShort(dbPage.getPageSize() - 5, pageNo);

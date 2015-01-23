@@ -359,6 +359,7 @@ public class HeapTupleFile implements TupleFile {
          * Generate the data necessary for storing the tuple into the file.
          */
 
+        // Get Size of the tuple you're adding
         int tupSize = PageTuple.getTupleStorageSize(schema, tup);
         logger.debug("Adding new tuple of size " + tupSize + " bytes.");
 
@@ -378,7 +379,6 @@ public class HeapTupleFile implements TupleFile {
         int freePageNo =  (int) HeaderPage.getNextFreeDataPageNo(headerPage);
         int prevPageNo = 0;
 
-
         while (freePageNo != -1) {
 
             freeDBPage = storageManager.loadDBPage(dbFile, freePageNo, false);
@@ -386,8 +386,10 @@ public class HeapTupleFile implements TupleFile {
             if (freeSpace >= tupSize + 2) {
                 break;
             }
+
             prevPageNo = freePageNo;
             freePageNo = DataPage.getNextFreeDataPageNo(freeDBPage);
+            freeDBPage.unpin();
         }
 
         // Add page if no new free pages
@@ -395,11 +397,13 @@ public class HeapTupleFile implements TupleFile {
 
             // Adding the new page
             freePageNo = dbFile.getNumPages();
-            logger.debug("Creating new page " + freePageNo + " to store new tuple.");
+            logger.debug("Creating new page " + freePageNo +
+                    " to store new tuple.");
             freeDBPage = storageManager.loadDBPage(dbFile, freePageNo, true);
             DataPage.initNewPage(freeDBPage);
 
-            // Set new datapage prev to tail
+            // Linking up the new page to the tail and making the new page
+            // the tail
             int tailPageNo = HeaderPage.getTailFreeDataPageNo(headerPage);
             DBPage tailPage = storageManager.loadDBPage(dbFile, tailPageNo);
 
@@ -411,35 +415,21 @@ public class HeapTupleFile implements TupleFile {
             }
 
             HeaderPage.setTailFreeDataPageNo(headerPage, freePageNo);
+            tailPage.unpin();
         }
 
-
-
-
-        /////////////////////// WRITE //////////////////////////////////////////////
-
-
-
-
+        // Write the tuple data into the page
         int slot = DataPage.allocNewTuple(freeDBPage, tupSize);
         int tupOffset = DataPage.getSlotValue(freeDBPage, slot);
 
         logger.debug(String.format(
                 "New tuple will reside on page %d, slot %d.", freePageNo, slot));
 
-        HeapFilePageTuple pageTup =
-                HeapFilePageTuple.storeNewTuple(schema, freeDBPage, slot, tupOffset, tup);
+        HeapFilePageTuple pageTup = HeapFilePageTuple.storeNewTuple(schema,
+                freeDBPage, slot, tupOffset, tup);
 
         // If the DataPage is now full, then we remove it from the list
         int freeSpace = DataPage.getFreeSpaceInPage(freeDBPage) - 4;
-
-
-        ///////////////////////// REMOVE FROM LIST IF FULL ///////////////////////
-
-
-
-        // CHANGE: currently using the inserted tuple size as the min tuple size
-        // when we actually want the min tuple size (check piazza)
 
         if(freeSpace < minTupleSize(tup))
         {
@@ -447,7 +437,8 @@ public class HeapTupleFile implements TupleFile {
             DBPage prevDBPage = storageManager.loadDBPage(dbFile,
                     prevPageNo, false);
 
-            // If tail is full
+            // If tail is the node that is full, get rid of tail
+            // set the second to last node to point to one and to tail
             if (freePageNo == HeaderPage.getTailFreeDataPageNo(headerPage)) {
                 DataPage.setNextFreeDataPageNo(prevDBPage, -1);
                 HeaderPage.setTailFreeDataPageNo(headerPage, prevPageNo);
@@ -464,6 +455,7 @@ public class HeapTupleFile implements TupleFile {
                 }
             }
 
+            prevDBPage.unpin();
         }
 
         DataPage.sanityCheck(freeDBPage);
@@ -543,6 +535,9 @@ public class HeapTupleFile implements TupleFile {
 
             // Set tail to new page
             HeaderPage.setTailFreeDataPageNo(headerPage, fullPageNo);
+
+            headerPage.unpin();
+            tailPage.unpin();
         }
 
         DataPage.sanityCheck(dbPage);

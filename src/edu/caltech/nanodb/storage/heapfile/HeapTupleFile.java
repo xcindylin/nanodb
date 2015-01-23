@@ -415,6 +415,7 @@ public class HeapTupleFile implements TupleFile {
             }
 
             HeaderPage.setTailFreeDataPageNo(headerPage, freePageNo);
+
             tailPage.unpin();
         }
 
@@ -433,7 +434,6 @@ public class HeapTupleFile implements TupleFile {
 
         if(freeSpace < minTupleSize(tup))
         {
-            System.out.format("hi %d\n", prevPageNo);
             DBPage prevDBPage = storageManager.loadDBPage(dbFile,
                     prevPageNo, false);
 
@@ -525,6 +525,7 @@ public class HeapTupleFile implements TupleFile {
 
         // Freestyle
         if (fullFlag) {
+
             DBPage headerPage = storageManager.loadDBPage(dbFile, 0, false);
             int fullPageNo = dbPage.getPageNo();
 
@@ -536,14 +537,14 @@ public class HeapTupleFile implements TupleFile {
             // Set tail to new page
             HeaderPage.setTailFreeDataPageNo(headerPage, fullPageNo);
 
+            // Have to set the new page's next value as the end
+            DataPage.setNextFreeDataPageNo(dbPage, -1);
             headerPage.unpin();
             tailPage.unpin();
         }
 
         DataPage.sanityCheck(dbPage);
     }
-
-
 
     public int minTupleSize(Tuple tup) {
         int numColumns = tup.getColumnCount();

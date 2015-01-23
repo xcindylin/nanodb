@@ -602,11 +602,6 @@ public abstract class PageTuple implements Tuple {
             pageOffset -= colSize;
             insertTupleDataRange(colOffset, colSize);
 
-//            System.out.format("\nColIndex: %d, currIndex: %d, colOffset: %d, pageOffset: %d, written to: %d, new size: %d\n",
-//                    colIndex, currIndex, colOffset, pageOffset, (colOffset-colSize), colSize);
-//            System.out.format("pageOffset: %d, datastart: %d\n", pageOffset, getDataStartOffset());
-
-
             writeNonNullValue(getDBPage(), colOffset - colSize, colType, value);
 
             computeValueOffsets();

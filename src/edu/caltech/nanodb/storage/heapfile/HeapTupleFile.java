@@ -7,7 +7,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
-import com.sun.xml.internal.ws.client.sei.ResponseBuilder;
+//import com.sun.xml.internal.ws.client.sei.ResponseBuilder;
+import edu.caltech.nanodb.relations.ColumnType;
 import org.apache.log4j.Logger;
 
 import edu.caltech.nanodb.qeval.TableStats;
@@ -370,53 +371,109 @@ public class HeapTupleFile implements TupleFile {
 
         // Search for a page to put the tuple in.  If we hit the end of the
         // data file, create a new page.
-        DBPage dbPage = null;
-        DBPage headerPage = storageManager.loadDBPage(dbFile, 0, true);
+        DBPage freeDBPage = null;
+        DBPage headerPage = storageManager.loadDBPage(dbFile, 0, false);
 
-        int freePageNo = HeaderPage.getNextFreeDataPageNo(dbPage);
+        int freePageNo =  (int) HeaderPage.getNextFreeDataPageNo(headerPage);
+        int prevPageNo = 0;
 
 
-        // Add page if no new free pages
         while (freePageNo != -1) {
-            dbPage = storageManager.loadDBPage(dbFile, freePageNo, true)
-            int freeSpace = DataPage.getFreeSpaceInPage(dbPage) - 4;
+
+            freeDBPage = storageManager.loadDBPage(dbFile, freePageNo, false);
+            int freeSpace = DataPage.getFreeSpaceInPage(freeDBPage) - 4;
             if (freeSpace >= tupSize + 2) {
                 break;
             }
-            freePageNo = DataPage.getNextFreeDataPageNo(dbPage);
+            prevPageNo = freePageNo;
+            freePageNo = DataPage.getNextFreeDataPageNo(freeDBPage);
         }
 
+        // Add page if no new free pages
         if (freePageNo == -1) {
+
+            // Adding the new page
             freePageNo = dbFile.getNumPages();
             logger.debug("Creating new page " + freePageNo + " to store new tuple.");
-            dbPage = storageManager.loadDBPage(dbFile, freePageNo, true);
-            DataPage.initNewPage(dbPage);
+            freeDBPage = storageManager.loadDBPage(dbFile, freePageNo, true);
+            DataPage.initNewPage(freeDBPage);
 
             // Set new datapage prev to tail
-            int lastPageNo = HeaderPage.getLastFreeDataPageNo(headerPage);
-            DBPage lastPage = storageManager.loadDBPage(dbFile, lastPageNo);
-            DataPage.setNextFreeDataPageNo(lastPage, freePageNo);
-            DataPage.setPrevFreeDataPageNo(dbPage, lastPageNo);
-            // Set tail to new page
-            HeaderPage.setLastFreeDataPageNo(headerPage, freePageNo);
+            int tailPageNo = HeaderPage.getTailFreeDataPageNo(headerPage);
+            DBPage tailPage = storageManager.loadDBPage(dbFile, tailPageNo);
+
+            if (HeaderPage.getNextFreeDataPageNo(headerPage) == -1) {
+                HeaderPage.setNextFreeDataPageNo(headerPage, freePageNo);
+            }
+            else {
+                DataPage.setNextFreeDataPageNo(tailPage, freePageNo);
+            }
+
+            HeaderPage.setTailFreeDataPageNo(headerPage, freePageNo);
         }
 
-        int slot = DataPage.allocNewTuple(dbPage, tupSize);
-        int tupOffset = DataPage.getSlotValue(dbPage, slot);
+
+
+
+        /////////////////////// WRITE //////////////////////////////////////////////
+
+
+
+
+        int slot = DataPage.allocNewTuple(freeDBPage, tupSize);
+        int tupOffset = DataPage.getSlotValue(freeDBPage, slot);
 
         logger.debug(String.format(
                 "New tuple will reside on page %d, slot %d.", freePageNo, slot));
 
         HeapFilePageTuple pageTup =
-                HeapFilePageTuple.storeNewTuple(schema, dbPage, slot, tupOffset, tup);
+                HeapFilePageTuple.storeNewTuple(schema, freeDBPage, slot, tupOffset, tup);
 
-        DataPage.sanityCheck(dbPage);
+        // If the DataPage is now full, then we remove it from the list
+        int freeSpace = DataPage.getFreeSpaceInPage(freeDBPage) - 4;
+
+
+        ///////////////////////// REMOVE FROM LIST IF FULL ///////////////////////
+
+
+
+        // CHANGE: currently using the inserted tuple size as the min tuple size
+        // when we actually want the min tuple size (check piazza)
+
+        if(freeSpace < minTupleSize(tup))
+        {
+            System.out.format("hi %d\n", prevPageNo);
+            DBPage prevDBPage = storageManager.loadDBPage(dbFile,
+                    prevPageNo, false);
+
+            // If tail is full
+            if (freePageNo == HeaderPage.getTailFreeDataPageNo(headerPage)) {
+                DataPage.setNextFreeDataPageNo(prevDBPage, -1);
+                HeaderPage.setTailFreeDataPageNo(headerPage, prevPageNo);
+            }
+
+            // Otherwise
+            else {
+                int nextPageNo = DataPage.getNextFreeDataPageNo(freeDBPage);
+                if (prevPageNo == 0) {
+                    HeaderPage.setNextFreeDataPageNo(prevDBPage, nextPageNo);
+                }
+                else {
+                    DataPage.setNextFreeDataPageNo(prevDBPage, nextPageNo);
+                }
+            }
+
+        }
+
+        DataPage.sanityCheck(freeDBPage);
 
         // Unpin page after adding tuple
-        dbPage.unpin();
+        freeDBPage.unpin();
 
         return pageTup;
     }
+
+
 
     // Inherit interface-method documentation.
     /**
@@ -462,12 +519,49 @@ public class HeapTupleFile implements TupleFile {
         HeapFilePageTuple ptup = (HeapFilePageTuple) tup;
 
         DBPage dbPage = ptup.getDBPage();
+
+        int freeSpace = DataPage.getFreeSpaceInPage(dbPage) - 4;
+
+        boolean fullFlag = false;
+
+        if (minTupleSize(ptup) > freeSpace) {
+            fullFlag = true;
+        }
+
+
         DataPage.deleteTuple(dbPage, ptup.getSlot());
+
+        // Freestyle
+        if (fullFlag) {
+            DBPage headerPage = storageManager.loadDBPage(dbFile, 0, false);
+            int fullPageNo = dbPage.getPageNo();
+
+            // Set new datapage prev to tail
+            int tailPageNo = HeaderPage.getTailFreeDataPageNo(headerPage);
+            DBPage tailPage = storageManager.loadDBPage(dbFile, tailPageNo);
+            DataPage.setNextFreeDataPageNo(tailPage, fullPageNo);
+
+            // Set tail to new page
+            HeaderPage.setTailFreeDataPageNo(headerPage, fullPageNo);
+        }
+
 
         DataPage.sanityCheck(dbPage);
 
         //dbPage.unpin();
 
+    }
+
+
+
+    public int minTupleSize(Tuple tup) {
+        int numColumns = tup.getColumnCount();
+        int sum = 0;
+        for(int i = 0; i < numColumns; i++) {
+            ColumnType columnType = schema.getColumnInfo(i).getType();
+            sum += PageTuple.getStorageSize(columnType, 0);
+        }
+        return sum;
     }
 
     @Override

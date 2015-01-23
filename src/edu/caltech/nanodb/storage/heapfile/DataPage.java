@@ -51,7 +51,7 @@ public class DataPage {
     public static void initNewPage(DBPage dbPage) {
         setNumSlots(dbPage, 0);
         // Freestyle
-
+        DataPage.setNextFreeDataPageNo(dbPage, -1);
     }
 
 
@@ -634,17 +634,8 @@ public class DataPage {
      * @param dbPage
      * @return
      */
-    public static int getNextFreeDataPageNo(DBPage dbPage) {
+    public static short getNextFreeDataPageNo(DBPage dbPage) {
         return dbPage.readShort(dbPage.getPageSize() - 3);
-    }
-
-    /**
-     * author - Freestyle
-     * @param dbPage
-     * @return
-     */
-    public static int getPrevFreeDataPageNo(DBPage dbPage) {
-        return dbPage.readShort(dbPage.getPageSize() - 5);
     }
 
     /**
@@ -656,12 +647,4 @@ public class DataPage {
         dbPage.writeShort(dbPage.getPageSize() - 3, pageNo);
     }
 
-    /**
-     * author - Freestyle
-     * @param dbPage
-     * @return
-     */
-    public static void setPrevFreeDataPageNo(DBPage dbPage, int pageNo) {
-        dbPage.writeShort(dbPage.getPageSize() - 5, pageNo);
-    }
 }

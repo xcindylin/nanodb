@@ -69,6 +69,10 @@ public class HeapTupleFileManager implements TupleFileManager {
         int statsSize = hpWriter.getPosition() - schemaEndPos;
         HeaderPage.setStatsSize(headerPage, statsSize);
 
+        // Set the tail to be the header page (page 0)
+        // Initialize the next page to be nothing (-1)
+        HeaderPage.setNextFreeDataPageNo(headerPage, -1);
+        HeaderPage.setTailFreeDataPageNo(headerPage, 0);
         return new HeapTupleFile(storageManager, dbFile, schema, stats);
     }
 

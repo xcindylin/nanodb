@@ -233,6 +233,7 @@ public class HeapTupleFile implements TupleFile {
             catch (EOFException e) {
                 // Hit the end of the file with no more tuples.  We are done
                 // scanning.
+                dbPage.unpin();
                 return null;
             }
         }
@@ -469,6 +470,7 @@ public class HeapTupleFile implements TupleFile {
 
         // Unpin page after adding tuple
         freeDBPage.unpin();
+        headerPage.unpin();
 
         return pageTup;
     }
@@ -503,8 +505,6 @@ public class HeapTupleFile implements TupleFile {
 
         DBPage dbPage = ptup.getDBPage();
         DataPage.sanityCheck(dbPage);
-
-        dbPage.unpin();
     }
 
 
@@ -545,11 +545,7 @@ public class HeapTupleFile implements TupleFile {
             HeaderPage.setTailFreeDataPageNo(headerPage, fullPageNo);
         }
 
-
         DataPage.sanityCheck(dbPage);
-
-        //dbPage.unpin();
-
     }
 
 

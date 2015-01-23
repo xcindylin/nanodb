@@ -73,6 +73,8 @@ public class HeapTupleFileManager implements TupleFileManager {
         // Initialize the next page to be nothing (-1)
         HeaderPage.setNextFreeDataPageNo(headerPage, -1);
         HeaderPage.setTailFreeDataPageNo(headerPage, 0);
+
+        headerPage.unpin();
         return new HeapTupleFile(storageManager, dbFile, schema, stats);
     }
 
@@ -97,6 +99,7 @@ public class HeapTupleFileManager implements TupleFileManager {
         StatsWriter statsWriter = new StatsWriter();
         TableStats stats = statsWriter.readTableStats(hpReader, schema);
 
+        headerPage.unpin();
         return new HeapTupleFile(storageManager, dbFile, schema, stats);
     }
 

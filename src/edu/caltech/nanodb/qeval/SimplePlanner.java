@@ -1,19 +1,19 @@
 package edu.caltech.nanodb.qeval;
 
 
+import java.awt.print.PrinterJob;
 import java.io.IOException;
 import java.util.List;
 
+import edu.caltech.nanodb.commands.SelectValue;
+import edu.caltech.nanodb.expressions.OrderByExpression;
+import edu.caltech.nanodb.plans.*;
 import org.apache.log4j.Logger;
 
 import edu.caltech.nanodb.commands.FromClause;
 import edu.caltech.nanodb.commands.SelectClause;
 
 import edu.caltech.nanodb.expressions.Expression;
-
-import edu.caltech.nanodb.plans.FileScanNode;
-import edu.caltech.nanodb.plans.PlanNode;
-import edu.caltech.nanodb.plans.SelectNode;
 
 import edu.caltech.nanodb.relations.TableInfo;
 import edu.caltech.nanodb.storage.StorageManager;
@@ -65,22 +65,65 @@ public class SimplePlanner implements Planner {
                 "Not yet implemented:  enclosing queries!");
         }
 
-        if (!selClause.isTrivialProject()) {
-            throw new UnsupportedOperationException(
-                "Not yet implemented:  project!");
-        }
+        System.out.println(selClause.toString());
 
         FromClause fromClause = selClause.getFromClause();
-        if (!fromClause.isBaseTable()) {
-            throw new UnsupportedOperationException(
-                "Not yet implemented:  joins or subqueries in FROM clause!");
+        PlanNode planNode = handleFromClause(selClause, fromClause);
+
+        if (!(selClause.isTrivialProject())) {
+            planNode = new ProjectNode(planNode, selClause.getSelectValues());
+            planNode.prepare();
         }
 
-        return makeSimpleSelect(fromClause.getTableName(),
-            selClause.getWhereExpr(), null);
+        List<OrderByExpression> orderByExprs = selClause.getOrderByExprs();
+        if (orderByExprs != null && !orderByExprs.isEmpty()) {
+            planNode = new SortNode(planNode, orderByExprs);
+            planNode.prepare();
+        }
+
+        return planNode;
     }
 
+    public PlanNode handleFromClause(SelectClause selClause,
+                                     FromClause fromClause) throws IOException {
+        if (fromClause == null) {
+            return makeSimpleProject(selClause.getSelectValues());
+        } else if (fromClause.isBaseTable()) {
+            Expression predicate = null;
+            if (selClause != null)
+                predicate = selClause.getWhereExpr();
+            return makeSimpleSelect(fromClause.getTableName(), predicate, null);
+        } else if (fromClause.isDerivedTable()) {
+            return makePlan(fromClause.getSelectClause(), null);
+        } else if (fromClause.isJoinExpr()) {
+            return handleJoinExpr(fromClause);
+        }
 
+        throw new UnsupportedOperationException("Clause not handled " + selClause.toString());
+    }
+
+    public PlanNode handleJoinExpr(FromClause fromClause) throws IOException {
+        FromClause leftClause = fromClause.getLeftChild();
+        FromClause rightClause = fromClause.getRightChild();
+        System.out.println(leftClause.toString());
+        System.out.println(rightClause.toString());
+
+        PlanNode leftPlan = handleFromClause(null, leftClause);
+        PlanNode rightPlan = handleFromClause(null, rightClause);
+
+        Expression joinExpr = fromClause.getPreparedJoinExpr();
+        PlanNode joinNode;
+        if (joinExpr == null) {
+            joinNode  = new SortMergeJoinNode(leftPlan, rightPlan,
+                    fromClause.getJoinType(), fromClause.getPreparedJoinExpr());
+            joinNode.prepare();
+        } else {
+            throw new UnsupportedOperationException("Join ons not supported");
+        }
+
+        return joinNode;
+
+    }
     /**
      * Constructs a simple select plan that reads directly from a table, with
      * an optional predicate for selecting rows.
@@ -124,5 +167,12 @@ public class SimplePlanner implements Planner {
         SelectNode selectNode = new FileScanNode(tableInfo, predicate);
         selectNode.prepare();
         return selectNode;
+    }
+
+    public ProjectNode makeSimpleProject(List<SelectValue> projectionSpec) throws IOException {
+        ProjectNode projectNode = new ProjectNode(projectionSpec);
+        projectNode.prepare();
+        return projectNode;
+
     }
 }

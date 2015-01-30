@@ -5,8 +5,10 @@ import java.io.IOException;
 import java.util.List;
 
 import edu.caltech.nanodb.commands.SelectClause;
+import edu.caltech.nanodb.commands.SelectValue;
 import edu.caltech.nanodb.expressions.Expression;
 import edu.caltech.nanodb.plans.PlanNode;
+import edu.caltech.nanodb.plans.ProjectNode;
 import edu.caltech.nanodb.plans.SelectNode;
 import edu.caltech.nanodb.storage.StorageManager;
 
@@ -92,5 +94,8 @@ public interface Planner {
      */
     SelectNode makeSimpleSelect(String tableName, Expression predicate,
                                 List<SelectClause> enclosingSelects)
+        throws IOException;
+
+    ProjectNode makeSimpleProject(List<SelectValue> selectSpec)
         throws IOException;
 }

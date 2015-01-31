@@ -31,6 +31,8 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
     /** Set to true when we have exhausted all tuples from our subplans. */
     private boolean done;
 
+    /** Set to true when we are just starting the nested loop. */
+    private boolean start;
 
     public NestedLoopsJoinNode(PlanNode leftChild, PlanNode rightChild,
                 JoinType joinType, Expression predicate) {
@@ -163,6 +165,8 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
         done = false;
         leftTuple = null;
         rightTuple = null;
+        start = true;
+
     }
 
 
@@ -194,8 +198,31 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
      *         {@code false} if no more pairs of tuples are available to join.
      */
     private boolean getTuplesToJoin() throws IOException {
-        // TODO:  Implement
-        return false;
+        // If just starting then advance both children
+        if (start) {
+            start = false;
+            leftTuple = leftChild.getNextTuple();
+            rightTuple = rightChild.getNextTuple();
+            if (leftTuple == null || rightTuple == null) {
+                done = true;
+                return false;
+            }
+            return true;
+        } else {
+            rightTuple = rightChild.getNextTuple();
+            if (rightTuple == null) {
+                leftTuple = leftChild.getNextTuple();
+                if (leftTuple == null) {
+                    done = true;
+                    return false;
+                }
+                rightChild.initialize();
+                return getTuplesToJoin();
+            } else {
+                return true;
+            }
+        }
+
     }
 
 

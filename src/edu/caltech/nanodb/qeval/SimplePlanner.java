@@ -113,13 +113,11 @@ public class SimplePlanner implements Planner {
 
         Expression joinExpr = fromClause.getPreparedJoinExpr();
         PlanNode joinNode;
-        if (joinExpr == null) {
-            joinNode  = new SortMergeJoinNode(leftPlan, rightPlan,
-                    fromClause.getJoinType(), fromClause.getPreparedJoinExpr());
-            joinNode.prepare();
-        } else {
-            throw new UnsupportedOperationException("Join ons not supported");
-        }
+
+        joinNode  = new NestedLoopsJoinNode(leftPlan, rightPlan,
+                fromClause.getJoinType(), joinExpr);
+        joinNode.prepare();
+
 
         return joinNode;
 

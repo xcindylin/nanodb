@@ -185,6 +185,14 @@ public class ProjectNode extends PlanNode {
                     // and the statistics from the input.
                     ColumnValue colValue = (ColumnValue) expr;
                     int colIndex = inputSchema.getColumnIndex(colValue.getColumnName());
+
+
+
+                    System.out.println(colValue.getColumnName());
+
+
+                    System.out.println(inputSchema.getColumnNames());
+
                     colInfo = inputSchema.getColumnInfo(colIndex);
                     stats.add(inputStats.get(colIndex));
                 }

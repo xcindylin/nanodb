@@ -3,9 +3,12 @@ package edu.caltech.nanodb.qeval;
 
 import java.awt.print.PrinterJob;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import edu.caltech.nanodb.commands.SelectValue;
+import edu.caltech.nanodb.expressions.ColumnName;
+import edu.caltech.nanodb.expressions.Null;
 import edu.caltech.nanodb.expressions.OrderByExpression;
 import edu.caltech.nanodb.plans.*;
 import org.apache.log4j.Logger;
@@ -56,6 +59,10 @@ public class SimplePlanner implements Planner {
         List<SelectClause> enclosingSelects) throws IOException {
         // TODO:  Implement!
 
+
+
+        System.out.println("done");
+
         // For HW1, we have a very simple implementation that defers to
         // makeSimpleSelect() to handle simple SELECT queries with one table,
         // and an optional WHERE clause.
@@ -65,15 +72,37 @@ public class SimplePlanner implements Planner {
                 "Not yet implemented:  enclosing queries!");
         }
 
-        System.out.println(selClause.toString());
+        System.out.println(selClause.toString() + "\n");
 
         FromClause fromClause = selClause.getFromClause();
         PlanNode planNode = handleFromClause(selClause, fromClause);
 
-        if (!(selClause.isTrivialProject())) {
-            planNode = new ProjectNode(planNode, selClause.getSelectValues());
+        List<SelectValue> values = selClause.getSelectValues();
+        SimpleExpProc processor = new SimpleExpProc();
+        for(SelectValue sv : values) {
+            if (sv.isExpression()) {
+//                System.out.println("Expressions: " + sv.toString());
+                Expression e = sv.getExpression().traverse(processor);
+                sv.setExpression(e);
+//                System.out.println("Expressions: " + sv.toString());
+            }
+        }
+
+        if (processor.getAggregates().size() > 0 || selClause.getGroupByExprs().size() > 0) {
+            planNode = new HashedGroupAggregateNode(planNode,
+                    selClause.getGroupByExprs(), processor.getAggregates());
             planNode.prepare();
         }
+
+//        for (SelectValue sv: selClause.getSelectValues()) {
+//            System.out.println(sv.getExpression().toString());
+//        }
+//
+//        if (!(selClause.isTrivialProject())) {
+//            planNode = new ProjectNode(planNode, selClause.getSelectValues());
+//            planNode.prepare();
+//        }
+
 
         List<OrderByExpression> orderByExprs = selClause.getOrderByExprs();
         if (orderByExprs != null && !orderByExprs.isEmpty()) {
@@ -84,27 +113,41 @@ public class SimplePlanner implements Planner {
         return planNode;
     }
 
+
     public PlanNode handleFromClause(SelectClause selClause,
                                      FromClause fromClause) throws IOException {
+
+        PlanNode planNode = null;
         if (fromClause == null) {
-            return makeSimpleProject(selClause.getSelectValues());
+            planNode = makeSimpleProject(selClause.getSelectValues());
         } else if (fromClause.isBaseTable()) {
             Expression predicate = null;
             if (selClause != null)
                 predicate = selClause.getWhereExpr();
-            return makeSimpleSelect(fromClause.getTableName(), predicate, null);
+            planNode = makeSimpleSelect(fromClause.getTableName(), predicate, null);
         } else if (fromClause.isDerivedTable()) {
-            return makePlan(fromClause.getSelectClause(), null);
+            planNode = makePlan(fromClause.getSelectClause(), null);
         } else if (fromClause.isJoinExpr()) {
-            return handleJoinExpr(fromClause);
+            planNode = handleJoinExpr(fromClause);
         }
 
-        throw new UnsupportedOperationException("Clause not handled " + selClause.toString());
+        if (fromClause.isRenamed() && planNode != null) {
+            return new RenameNode(planNode, fromClause.getResultName());
+        }
+        else {
+            return planNode;
+        }
+
+//        throw new UnsupportedOperationException("Clause not handled " +
+//                selClause.toString());
+
+
     }
 
     public PlanNode handleJoinExpr(FromClause fromClause) throws IOException {
         FromClause leftClause = fromClause.getLeftChild();
         FromClause rightClause = fromClause.getRightChild();
+
         System.out.println(leftClause.toString());
         System.out.println(rightClause.toString());
 
@@ -164,11 +207,21 @@ public class SimplePlanner implements Planner {
         // predicate.
         SelectNode selectNode = new FileScanNode(tableInfo, predicate);
         selectNode.prepare();
+
         return selectNode;
     }
 
+    // Freestyle
     public ProjectNode makeSimpleProject(List<SelectValue> projectionSpec) throws IOException {
         ProjectNode projectNode = new ProjectNode(projectionSpec);
+        System.out.println("Start");
+        for(SelectValue i: projectionSpec) {
+
+            System.out.println(i.toString());
+
+        }
+        System.out.println("Start");
+
         projectNode.prepare();
         return projectNode;
 

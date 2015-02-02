@@ -176,7 +176,7 @@ public class HashedGroupAggregateNode extends GroupAggregateNode {
             if (groupAggregates == null) {
                 groupAggregates = new LinkedHashMap<String, FunctionCall>();
 
-                // logger.debug(" * Creating new computed aggregates for this group");
+                // logger.debug(" * 12Creating new computed aggregates for this group");
 
                 // Clone each aggregate function, since aggregates keep some
                 // internal scratch space for computation.

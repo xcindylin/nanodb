@@ -28,11 +28,15 @@ setup_testSelectProject = \
     INSERT INTO test_select_project VALUES ( 5, 'yellow',   40 ); \
     INSERT INTO test_select_project VALUES ( 6,   'blue',   50 );
 
+#================================================================================
+# SIMPLE INNER AND OUTER JOINS
+#
+
 # This setup SQL is used for the join test cases
 setup_testSimpleJoins = \
     CREATE TABLE test_join_a ( \
         a INTEGER, \
-        b VARCHAR(20), \
+        b VARCHAR(20) \
     ); \
     INSERT INTO test_join_a VALUES (1,    'red'); \
     INSERT INTO test_join_a VALUES (3,     NULL); \
@@ -41,7 +45,7 @@ setup_testSimpleJoins = \
     INSERT INTO test_join_a VALUES (5, 'yellow'); \
     CREATE TABLE test_join_b ( \
         a INTEGER, \
-        b VARCHAR(20), \
+        b VARCHAR(20) \
     ); \
     INSERT INTO test_join_b VALUES (1, 'yellow'); \
     INSERT INTO test_join_b VALUES (1, 'orange'); \

@@ -37,7 +37,7 @@ public class TestSimpleJoins extends SqlTestCase {
         CommandResult result = server.doCommand(
                 "SELECT * FROM test_join_a INNER JOIN test_join_b" +
                         "ON test_join_a.a = test_join_b.a", true);
-        assert checkOrderedResults(expected, result);
+        assert checkUnorderedResults(expected, result);
     }
 
 
@@ -107,7 +107,7 @@ public class TestSimpleJoins extends SqlTestCase {
         CommandResult result = server.doCommand(
                 "SELECT * FROM test_join_a LEFT OUTER JOIN test_join_b" +
                         "ON test_join_a.a = test_join_b.a", true);
-        assert checkOrderedResults(expected, result);
+        assert checkUnorderedResults(expected, result);
     }
 
     /**
@@ -144,7 +144,7 @@ public class TestSimpleJoins extends SqlTestCase {
         CommandResult result = server.doCommand(
                 "SELECT * FROM test_join_a LEFT OUTER JOIN test_join_c" +
                         "ON test_join_a.a = test_join_c.a", true);
-        assert checkOrderedResults(expected, result);
+        assert checkUnorderedResults(expected, result);
     }
 
 
@@ -184,7 +184,7 @@ public class TestSimpleJoins extends SqlTestCase {
         CommandResult result = server.doCommand(
                 "SELECT * FROM test_join_a RIGHT OUTER JOIN test_join_b" +
                         "ON test_join_a.a = test_join_b.a", true);
-        assert checkOrderedResults(expected, result);
+        assert checkUnorderedResults(expected, result);
     }
 
     /**
@@ -206,7 +206,7 @@ public class TestSimpleJoins extends SqlTestCase {
         CommandResult result = server.doCommand(
                 "SELECT * FROM test_join_c RIGHT OUTER JOIN test_join_a" +
                         "ON test_join_c.a = test_join_a.a", true);
-        assert checkOrderedResults(expected, result);
+        assert checkUnorderedResults(expected, result);
     }
 
 

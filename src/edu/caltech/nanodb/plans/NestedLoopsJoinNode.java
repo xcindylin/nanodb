@@ -4,6 +4,7 @@ package edu.caltech.nanodb.plans;
 import java.io.IOException;
 import java.util.List;
 
+import edu.caltech.nanodb.expressions.TupleLiteral;
 import org.apache.log4j.Logger;
 
 import edu.caltech.nanodb.expressions.Expression;
@@ -27,6 +28,9 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
     /** Most recently retrieved tuple of the right relation. */
     private Tuple rightTuple;
 
+    private boolean matched;
+
+    private boolean doneRight;
 
     /** Set to true when we have exhausted all tuples from our subplans. */
     private boolean done;
@@ -166,6 +170,8 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
         leftTuple = null;
         rightTuple = null;
         start = true;
+        matched = false;
+
 
     }
 
@@ -181,10 +187,27 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
         if (done)
             return null;
 
-        while (getTuplesToJoin()) {
-            if (canJoinTuples())
-                return joinTuples(leftTuple, rightTuple);
+        if (joinType == JoinType.LEFT_OUTER) {
+            while (getTuplesToJoinLeftOuter()) {
+                if (canJoinTuples()) {
+                    matched = true;
+                    return joinTuples(leftTuple, rightTuple);
+                }
+                if (matched = false && doneRight == true) {
+                    doneRight = false;
+                    matched = false;
+                    return joinTuples(leftTuple, new TupleLiteral());
+                }
+            }
+        } else {
+            while (getTuplesToJoin()) {
+                if (canJoinTuples()) {
+                    return joinTuples(leftTuple, rightTuple);
+                }
+
+            }
         }
+
 
         return null;
     }
@@ -225,6 +248,37 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
 
     }
 
+    private boolean getTuplesToJoinLeftOuter() throws IOException {
+        // If just starting then advance both children
+        if (start) {
+            start = false;
+            leftTuple = leftChild.getNextTuple();
+            rightTuple = rightChild.getNextTuple();
+            if (leftTuple == null) {
+                done = true;
+                return false;
+            }
+            if (rightTuple == null) {
+                doneRight = true;
+            }
+            return true;
+        } else {
+            rightTuple = rightChild.getNextTuple();
+            if (rightTuple == null) {
+                doneRight = true;
+                leftTuple = leftChild.getNextTuple();
+                if (leftTuple == null) {
+                    done = true;
+                    return false;
+                }
+                rightChild.initialize();
+                return getTuplesToJoin();
+            } else {
+                return true;
+            }
+        }
+
+    }
 
     private boolean canJoinTuples() {
         // If the predicate was not set, we can always join them!

@@ -32,6 +32,7 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
 
     private boolean doneRight;
 
+    private boolean rightEmpty;
     /** Set to true when we have exhausted all tuples from our subplans. */
     private boolean done;
 
@@ -171,6 +172,7 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
         rightTuple = null;
         start = true;
         matched = false;
+        rightEmpty = false;
 
 
     }
@@ -189,14 +191,17 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
 
         if (joinType == JoinType.LEFT_OUTER) {
             while (getTuplesToJoinLeftOuter()) {
+                if (doneRight == true) {
+                    doneRight = false;
+                    if (matched == false) {
+                        return joinTuples(leftTuple, new TupleLiteral());
+                    } else {
+                        matched = false;
+                    }
+                }
                 if (canJoinTuples()) {
                     matched = true;
                     return joinTuples(leftTuple, rightTuple);
-                }
-                if (matched = false && doneRight == true) {
-                    doneRight = false;
-                    matched = false;
-                    return joinTuples(leftTuple, new TupleLiteral());
                 }
             }
         } else {
@@ -260,11 +265,12 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
             }
             if (rightTuple == null) {
                 doneRight = true;
+                rightEmpty = true;
             }
             return true;
         } else {
             rightTuple = rightChild.getNextTuple();
-            if (rightTuple == null) {
+            if (rightTuple == null && !rightEmpty) {
                 doneRight = true;
                 leftTuple = leftChild.getNextTuple();
                 if (leftTuple == null) {
@@ -272,7 +278,7 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
                     return false;
                 }
                 rightChild.initialize();
-                return getTuplesToJoin();
+                return getTuplesToJoinLeftOuter();
             } else {
                 return true;
             }

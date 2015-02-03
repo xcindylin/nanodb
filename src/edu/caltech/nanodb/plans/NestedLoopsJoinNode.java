@@ -32,6 +32,9 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
 
     private boolean matched;
 
+    private boolean start;
+
+    private boolean rightEmpty;
     /** Set to true when we have exhausted all tuples from our subplans. */
     private boolean done;
 
@@ -170,7 +173,8 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
         rightTuple = null;
         matched = false;
         NULL_TUPLE = new TupleLiteral(rightChild.getSchema().numColumns());
-
+        start = true;
+        rightEmpty = false;
 
     }
 
@@ -188,8 +192,6 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
         while (getTuplesToJoin()) {
             if (canJoinTuples() || rightTuple.equals(NULL_TUPLE)) {
                 matched = true;
-                if (rightTuple.equals(NULL_TUPLE))
-                    matched = false;
                 if (joinType == JoinType.RIGHT_OUTER) {
                     return joinTuples(rightTuple, leftTuple);
                 }
@@ -218,24 +220,16 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
             done = true;
             return false;
         }
-        // Check if prevRight was NULL_TUPLE in which case rightChild is empty
-        boolean prevNull = false;
+
         if (rightTuple != null)
-            prevNull = rightTuple.equals(NULL_TUPLE);
+            System.out.println(leftTuple.toString() + " " + rightTuple.toString());
 
         // Advance right and check if at end
         rightTuple = rightChild.getNextTuple();
         if (rightTuple == null) {
+
             // If haven't matched and doing an outer join, set right to null
             if (!matched && (joinType == JoinType.LEFT_OUTER || joinType == JoinType.RIGHT_OUTER)) {
-                // If right child is empty, advance left
-                if (prevNull) {
-                    leftTuple = leftChild.getNextTuple();
-                    if (leftTuple == null) {
-                        done = true;
-                        return false;
-                    }
-                }
                 rightTuple = NULL_TUPLE;
                 matched = false;
                 return true;
@@ -251,7 +245,6 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
             }
 
         }
-
         //System.out.println(leftTuple.toString() + " " +
 //        rightTuple.toString());
 

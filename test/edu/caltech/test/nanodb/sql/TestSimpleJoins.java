@@ -35,8 +35,8 @@ public class TestSimpleJoins extends SqlTestCase {
         };
 
         CommandResult result = server.doCommand(
-                "SELECT * FROM (test_join_a INNER JOIN test_join_b" +
-                        " ON test_join_a.a = test_join_b.a) AS test", true);
+                "SELECT * FROM test_join_a INNER JOIN test_join_b" +
+                        " ON test_join_a.a = test_join_b.a", true);
         assert checkOrderedResults(expected, result);
     }
 
@@ -50,8 +50,8 @@ public class TestSimpleJoins extends SqlTestCase {
      */
     public void testInnerJoinLeftEmpty() throws Throwable {
         CommandResult result = server.doCommand(
-                "SELECT * FROM (test_join_c INNER JOIN test_join_a" +
-                        " ON test_join_c.a = test_join_a.a) AS test", true);
+                "SELECT * FROM test_join_c INNER JOIN test_join_a" +
+                        " ON test_join_c.a = test_join_a.a", true);
         assert result.getTuples().size() == 0;
     }
 

@@ -188,6 +188,11 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
         while (getTuplesToJoin()) {
             if (canJoinTuples() || rightTuple.equals(NULL_TUPLE)) {
                 matched = true;
+                if (rightTuple.equals(NULL_TUPLE))
+                    matched = false;
+                if (joinType == JoinType.RIGHT_OUTER) {
+                    return joinTuples(rightTuple, leftTuple);
+                }
                 return joinTuples(leftTuple, rightTuple);
             }
         }
@@ -213,39 +218,46 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
             done = true;
             return false;
         }
+        // Check if prevRight was NULL_TUPLE in which case rightChild is empty
+        boolean prevNull = false;
+        if (rightTuple != null)
+            prevNull = rightTuple.equals(NULL_TUPLE);
 
         // Advance right and check if at end
         rightTuple = rightChild.getNextTuple();
         if (rightTuple == null) {
             // If haven't matched and doing an outer join, set right to null
-
-            if (!matched && (joinType == JoinType.LEFT_OUTER ||
-                    joinType == JoinType.RIGHT_OUTER)) {
-
             if (!matched && (joinType == JoinType.LEFT_OUTER || joinType == JoinType.RIGHT_OUTER)) {
-
+                // If right child is empty, advance left
+                if (prevNull) {
+                    leftTuple = leftChild.getNextTuple();
+                    if (leftTuple == null) {
+                        done = true;
+                        return false;
+                    }
+                }
                 rightTuple = NULL_TUPLE;
                 matched = false;
                 return true;
-            } else {
-                // Reset right and advance left and check if done with left
-                rightChild.initialize();
-                rightTuple = rightChild.getNextTuple();
-                leftTuple = leftChild.getNextTuple();
-                matched = false;
-                if (leftTuple == null) {
-                    done = true;
-                    return false;
-                }
             }
+            // Reset right and advance left and check if done with left
+            rightChild.initialize();
+            rightTuple = rightChild.getNextTuple();
+            leftTuple = leftChild.getNextTuple();
+            matched = false;
+            if (leftTuple == null) {
+                done = true;
+                return false;
+            }
+
         }
 
         //System.out.println(leftTuple.toString() + " " +
 //        rightTuple.toString());
 
-        //System.out.println(leftTuple.toString() + " " + rightTuple.toString());
 
-        }
+
+
         return true;
     }
 

@@ -35,6 +35,8 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
     private boolean start;
 
     private boolean rightEmpty;
+
+    private boolean doneRight;
     /** Set to true when we have exhausted all tuples from our subplans. */
     private boolean done;
 
@@ -175,6 +177,7 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
         NULL_TUPLE = new TupleLiteral(rightChild.getSchema().numColumns());
         start = true;
         rightEmpty = false;
+        doneRight = false;
 
     }
 
@@ -194,6 +197,13 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
                 matched = true;
                 if (joinType == JoinType.RIGHT_OUTER) {
                     return joinTuples(rightTuple, leftTuple);
+                }
+                if (joinType == JoinType.SEMIJOIN) {
+                    return leftTuple;
+                }
+                if (joinType == JoinType.ANTIJOIN && doneRight) {
+                    doneRight = false;
+                    return leftTuple;
                 }
                 return joinTuples(leftTuple, rightTuple);
             }
@@ -224,19 +234,38 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
         if (rightTuple != null)
             System.out.println(leftTuple.toString() + " " + rightTuple.toString());
 
-        // Advance right and check if at end
+        // If matched and doing semi, then advance left and reset right
+        if (matched && joinType == JoinType.SEMIJOIN) {
+            leftTuple = leftChild.getNextTuple();
+            matched = false;
+            if (leftTuple == null) {
+                done = true;
+                return false;
+            }
+            rightChild.initialize();
+        }
+
         rightTuple = rightChild.getNextTuple();
         if (rightTuple == null) {
-
+            doneRight = true;
             // If haven't matched and doing an outer join, set right to null
             if (!matched && (joinType == JoinType.LEFT_OUTER || joinType == JoinType.RIGHT_OUTER)) {
                 rightTuple = NULL_TUPLE;
                 matched = false;
                 return true;
             }
+            // If haven't matched and doing antijoin, reset right
+            if (!matched && (joinType == JoinType.ANTIJOIN)) {
+                rightChild.initialize();
+                rightTuple = NULL_TUPLE;
+                return true;
+            }
             // Reset right and advance left and check if done with left
             rightChild.initialize();
             rightTuple = rightChild.getNextTuple();
+            if (rightTuple == null && (joinType == JoinType.LEFT_OUTER || joinType == JoinType.RIGHT_OUTER)) {
+                rightTuple = NULL_TUPLE;
+            }
             leftTuple = leftChild.getNextTuple();
             matched = false;
             if (leftTuple == null) {
@@ -245,8 +274,6 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
             }
 
         }
-        //System.out.println(leftTuple.toString() + " " +
-//        rightTuple.toString());
 
 
 

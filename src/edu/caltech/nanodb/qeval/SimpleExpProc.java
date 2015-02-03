@@ -10,18 +10,21 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Created by david on 2/1/15.
+/** Freestyle
+ * SimpleExpProc stands for Simple Expression Processor.
+ * This is used called to handle aggregate functions
  */
 public class SimpleExpProc implements ExpressionProcessor{
+    // Mapping between placeholder names and their aggregate function
+    // counterparts
     private Map<String, FunctionCall> aggregates;
-    private Set<FunctionCall> seenFunctions;
 
     public SimpleExpProc() {
         this.aggregates = new HashMap<String, FunctionCall>();
-        this.seenFunctions = new HashSet<FunctionCall>();
     }
 
+    // Enter checks the expression is an aggregate function
+    // if it is then we put it in our mapping, generating a placeholder name
     @Override
     public void enter(Expression node) {
 
@@ -40,13 +43,15 @@ public class SimpleExpProc implements ExpressionProcessor{
                     }
 
                 }
-
+                // Put in in our mapping
                 aggregates.put("#" + aggregates.size(), (FunctionCall) node);
-
             }
         }
     }
 
+    // Leave takes in an expression and if it is an aggregate function
+    // return its placeholder name
+    // otherwise return itself
     @Override
     public Expression leave(Expression node) {
         if (node instanceof FunctionCall) {
@@ -61,6 +66,11 @@ public class SimpleExpProc implements ExpressionProcessor{
     }
 
 
+    /**
+     * Get the Aggregates
+     * @return The mapping between the placeholder variable names and the
+     * actual functions
+     */
     public Map<String, FunctionCall> getAggregates() {
         return aggregates;
     }

@@ -77,16 +77,9 @@ public class SimplePlanner implements Planner {
         FromClause fromClause = selClause.getFromClause();
         PlanNode planNode = handleFromClause(selClause, fromClause);
 
-        List<SelectValue> values = selClause.getSelectValues();
         SimpleExpProc processor = new SimpleExpProc();
-        for(SelectValue sv : values) {
-            if (sv.isExpression()) {
-//                System.out.println("Expressions: " + sv.toString());
-                Expression e = sv.getExpression().traverse(processor);
-                sv.setExpression(e);
-//                System.out.println("Expressions: " + sv.toString());
-            }
-        }
+
+        handleAggregates(processor, selClause);
 
         if (processor.getAggregates().size() > 0 || selClause.getGroupByExprs().size() > 0) {
             planNode = new HashedGroupAggregateNode(planNode,
@@ -94,15 +87,10 @@ public class SimplePlanner implements Planner {
             planNode.prepare();
         }
 
-//        for (SelectValue sv: selClause.getSelectValues()) {
-//            System.out.println(sv.getExpression().toString());
-//        }
-//
-//        if (!(selClause.isTrivialProject())) {
-//            planNode = new ProjectNode(planNode, selClause.getSelectValues());
-//            planNode.prepare();
-//        }
-
+        if (!(selClause.isTrivialProject())) {
+            planNode = new ProjectNode(planNode, selClause.getSelectValues());
+            planNode.prepare();
+        }
 
         List<OrderByExpression> orderByExprs = selClause.getOrderByExprs();
         if (orderByExprs != null && !orderByExprs.isEmpty()) {
@@ -113,6 +101,38 @@ public class SimplePlanner implements Planner {
         return planNode;
     }
 
+    public void handleAggregates(SimpleExpProc processor, SelectClause selClause) {
+        // Check where clause for Aggregate
+        int prevSize = processor.getAggregates().size();
+
+        if (selClause.getWhereExpr() != null) {
+            selClause.getWhereExpr().traverse(processor);
+            if (processor.getAggregates().size() > prevSize)
+                throw new IllegalArgumentException("Cannot have aggregates inside WHERE clause");
+        }
+
+//        if (selClause.getFromClause() != null) {
+//            if (selClause.getFromClause().getOnExpression() != null) {
+//                selClause.getFromClause().getOnExpression().traverse(processor);
+//                if (processor.getAggregates().size() > prevSize)
+//                    throw new IllegalArgumentException("Cannot have aggregates inside ON clause");
+//            }
+//        }
+
+        List<SelectValue> values = selClause.getSelectValues();
+        for(SelectValue sv : values) {
+            if (sv.isExpression()) {
+                Expression e = sv.getExpression().traverse(processor);
+                sv.setExpression(e);
+            }
+        }
+
+        if (selClause.getHavingExpr() != null) {
+            Expression e = selClause.getHavingExpr().traverse(processor);
+            selClause.setHavingExpr(e);
+        }
+
+    }
 
     public PlanNode handleFromClause(SelectClause selClause,
                                      FromClause fromClause) throws IOException {
@@ -125,18 +145,19 @@ public class SimplePlanner implements Planner {
             if (selClause != null)
                 predicate = selClause.getWhereExpr();
             planNode = makeSimpleSelect(fromClause.getTableName(), predicate, null);
+            if (fromClause.isRenamed()) {
+                planNode = new RenameNode(planNode, fromClause.getResultName());
+            }
         } else if (fromClause.isDerivedTable()) {
             planNode = makePlan(fromClause.getSelectClause(), null);
+            if (fromClause.isRenamed()) {
+                planNode = new RenameNode(planNode, fromClause.getResultName());
+            }
         } else if (fromClause.isJoinExpr()) {
             planNode = handleJoinExpr(fromClause);
         }
 
-        if (fromClause.isRenamed() && planNode != null) {
-            return new RenameNode(planNode, fromClause.getResultName());
-        }
-        else {
-            return planNode;
-        }
+        return planNode;
 
 //        throw new UnsupportedOperationException("Clause not handled " +
 //                selClause.toString());
@@ -214,14 +235,6 @@ public class SimplePlanner implements Planner {
     // Freestyle
     public ProjectNode makeSimpleProject(List<SelectValue> projectionSpec) throws IOException {
         ProjectNode projectNode = new ProjectNode(projectionSpec);
-        System.out.println("Start");
-        for(SelectValue i: projectionSpec) {
-
-            System.out.println(i.toString());
-
-        }
-        System.out.println("Start");
-
         projectNode.prepare();
         return projectNode;
 

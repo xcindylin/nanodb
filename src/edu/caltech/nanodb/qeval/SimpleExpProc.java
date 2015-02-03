@@ -6,28 +6,29 @@ import edu.caltech.nanodb.functions.Function;
 import edu.caltech.nanodb.functions.ScalarFunction;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Created by david on 2/1/15.
  */
 public class SimpleExpProc implements ExpressionProcessor{
     private Map<String, FunctionCall> aggregates;
-    private Map<ColumnValue, String> columns;
+    private Set<FunctionCall> seenFunctions;
 
     public SimpleExpProc() {
         this.aggregates = new HashMap<String, FunctionCall>();
-        this.columns = new HashMap<ColumnValue, String>();
+        this.seenFunctions = new HashSet<FunctionCall>();
     }
 
     @Override
     public void enter(Expression node) {
+
         if (node instanceof FunctionCall) {
             FunctionCall call = (FunctionCall) node;
             ScalarFunction f = call.getFunction();
             if(f instanceof AggregateFunction) {
-
-                System.out.println("");
                 // Check if there is an aggregate function within another
                 // aggregate function
                 for(Expression arg: ((FunctionCall) node).getArguments()) {
@@ -39,7 +40,10 @@ public class SimpleExpProc implements ExpressionProcessor{
                     }
 
                 }
-
+//                if (!seenFunctions.contains((FunctionCall) node)) {
+//                    aggregates.put("#" + aggregates.size(), (FunctionCall) node);
+//                    seenFunctions.add((FunctionCall) node);
+//                }
                 aggregates.put("#" + aggregates.size(), (FunctionCall) node);
 //                aggregates.put(node.simplify().toString(), (FunctionCall) node);
             }
@@ -48,16 +52,27 @@ public class SimpleExpProc implements ExpressionProcessor{
 
     @Override
     public Expression leave(Expression node) {
-//        return new ColumnValue(new ColumnName("#" + (aggregates.size()-1)));
+        if (node instanceof FunctionCall) {
+            FunctionCall call = (FunctionCall) node;
+            ScalarFunction f = call.getFunction();
+            if(f instanceof AggregateFunction) {
+                return new ColumnValue(new ColumnName("#" + (aggregates.size()-1)));
+            }
+        }
+
         return node;
+
+
+//        if (hasAggregate) {
+//            hasAggregate = false;
+//            return new ColumnValue(new ColumnName("#" + (aggregates.size()-1)));
+//        }
+//        else
+//            return node;
     }
 
 
     public Map<String, FunctionCall> getAggregates() {
         return aggregates;
-    }
-
-    public String getColumn(ColumnValue columnValue) {
-        return columns.get(columnValue);
     }
 }

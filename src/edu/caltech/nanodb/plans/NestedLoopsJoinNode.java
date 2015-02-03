@@ -28,30 +28,23 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
     /** Most recently retrieved tuple of the right relation. */
     private Tuple rightTuple;
 
-    private Tuple prevLeftTuple;
-
     private Tuple NULL_TUPLE;
 
     private boolean matched;
 
-    private boolean doneRight;
-
-    private boolean rightEmpty;
     /** Set to true when we have exhausted all tuples from our subplans. */
     private boolean done;
 
-    /** Set to true when we are just starting the nested loop. */
-    private boolean start;
-
     public NestedLoopsJoinNode(PlanNode leftChild, PlanNode rightChild,
-                JoinType joinType, Expression predicate) {
+                               JoinType joinType, Expression predicate) {
 
         super(leftChild, rightChild, joinType, predicate);
     }
 
 
     /**
-     * Checks if the argument is a plan node tree with the same structure, but not
+     * Checks if the argument is a plan node tree with the same
+     structure, but not
      * necessarily the same references.
      *
      * @param obj the object to which we are comparing
@@ -63,8 +56,8 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
             NestedLoopsJoinNode other = (NestedLoopsJoinNode) obj;
 
             return predicate.equals(other.predicate) &&
-                leftChild.equals(other.leftChild) &&
-                rightChild.equals(other.rightChild);
+                    leftChild.equals(other.leftChild) &&
+                    rightChild.equals(other.rightChild);
         }
 
         return false;
@@ -169,17 +162,13 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
 
 
     public void initialize() {
-        super.initialize();
-
         if (joinType == JoinType.RIGHT_OUTER)
             super.swap();
+        super.initialize();
         done = false;
         leftTuple = null;
         rightTuple = null;
-        prevLeftTuple = null;
-        start = true;
         matched = false;
-        rightEmpty = false;
         NULL_TUPLE = new TupleLiteral(rightChild.getSchema().numColumns());
 
 
@@ -196,79 +185,17 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
     public Tuple getNextTuple() throws IOException {
         if (done)
             return null;
-
-        switch(joinType) {
-            case LEFT_OUTER:
-            case RIGHT_OUTER:
-                return handleLeftOuter();
-            case INNER:
-            case CROSS:
-                return handleInner();
-            case SEMIJOIN:
-                return handleSemi();
-            case ANTIJOIN:
-                return handleAnti();
-            default:
-                throw new UnsupportedOperationException("Join type not supported " + joinType.toString());
-        }
-
-    }
-
-    public Tuple handleLeftOuter() throws IOException {
-        while (getTuplesToJoinLeftOuter()) {
-            if (doneRight == true) {
-                doneRight = false;
-                if (matched == false) {
-                    return joinTuples(prevLeftTuple, NULL_TUPLE);
-                } else {
-                    matched = false;
-                }
-            }
-            if (leftTuple != null && rightTuple != null && canJoinTuples()) {
+        while (getTuplesToJoin()) {
+            if (canJoinTuples() || rightTuple.equals(NULL_TUPLE)) {
                 matched = true;
                 return joinTuples(leftTuple, rightTuple);
             }
         }
-
         return null;
+
     }
 
-    public Tuple handleInner() throws IOException {
-        while (getTuplesToJoin()) {
-            if (canJoinTuples()) {
-                return joinTuples(leftTuple, rightTuple);
-            }
-        }
-        return null;
-    }
 
-    public Tuple handleSemi() throws IOException {
-        while (getTuplesToJoin()) {
-            if (canJoinTuples()) {
-                matched = true;
-                return leftTuple;
-            }
-        }
-        return null;
-    }
-
-    public Tuple handleAnti() throws IOException {
-        while (getTuplesToJoinAnti()) {
-            if (doneRight == true) {
-                doneRight = false;
-                if (matched == false) {
-                    return prevLeftTuple;
-                } else {
-                    matched = false;
-                }
-            }
-            if (leftTuple != null && rightTuple != null && canJoinTuples()) {
-                matched = true;
-            }
-        }
-
-        return null;
-    }
     /**
      * This helper function implements the logic that sets {@link #leftTuple}
      * and {@link #rightTuple} based on the nested-loops logic.
@@ -277,103 +204,40 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
      *         {@code false} if no more pairs of tuples are available to join.
      */
     private boolean getTuplesToJoin() throws IOException {
-        // If just starting then advance both children
-        if (start) {
-            start = false;
+        // If just starting then advance left
+        if (leftTuple == null) {
             leftTuple = leftChild.getNextTuple();
-            rightTuple = rightChild.getNextTuple();
-            if (leftTuple == null || rightTuple == null) {
-                done = true;
-                return false;
-            }
-            return true;
-        } else {
-            rightTuple = rightChild.getNextTuple();
-            if (matched || rightTuple == null) {
+        }
+        // Handle empty left case
+        if (leftTuple == null) {
+            done = true;
+            return false;
+        }
+
+        // Advance right and check if at end
+        rightTuple = rightChild.getNextTuple();
+        if (rightTuple == null) {
+            // If haven't matched and doing an outer join, set right to null
+            if (!matched && (joinType == JoinType.LEFT_OUTER ||
+                    joinType == JoinType.RIGHT_OUTER)) {
+                rightTuple = NULL_TUPLE;
+                matched = false;
+                return true;
+            } else {
+                // Reset right and advance left and check if done with left
+                rightChild.initialize();
+                rightTuple = rightChild.getNextTuple();
                 leftTuple = leftChild.getNextTuple();
                 matched = false;
                 if (leftTuple == null) {
                     done = true;
                     return false;
                 }
-                rightChild.initialize();
-                return getTuplesToJoin();
-            } else {
-                return true;
             }
         }
-
-    }
-
-    private boolean getTuplesToJoinLeftOuter() throws IOException {
-        // If just starting then advance both children
-        if (start) {
-            start = false;
-            leftTuple = leftChild.getNextTuple();
-            rightTuple = rightChild.getNextTuple();
-            if (leftTuple == null) {
-                done = true;
-                return false;
-            }
-            if (rightTuple == null) {
-                doneRight = true;
-                rightEmpty = true;
-            }
-            return true;
-        } else {
-            rightTuple = rightChild.getNextTuple();
-            if (rightTuple == null && !rightEmpty) {
-                doneRight = true;
-                prevLeftTuple = new TupleLiteral(leftTuple);
-                leftTuple = leftChild.getNextTuple();
-                if (leftTuple == null) {
-                    done = true;
-                    return false;
-                }
-                rightChild.initialize();
-            }
-            if (leftTuple == null) {
-                done = true;
-                return false;
-            }
-            return true;
-        }
-
-    }
-
-    private boolean getTuplesToJoinAnti() throws IOException {
-        // If just starting then advance both children
-        if (start) {
-            start = false;
-            leftTuple = leftChild.getNextTuple();
-            rightTuple = rightChild.getNextTuple();
-            if (leftTuple == null) {
-                done = true;
-                return false;
-            }
-            if (rightTuple == null) {
-                doneRight = true;
-                rightEmpty = true;
-            }
-            return true;
-        } else {
-            rightTuple = rightChild.getNextTuple();
-            if ((rightTuple == null && !rightEmpty) || matched) {
-                doneRight = true;
-                prevLeftTuple = new TupleLiteral(leftTuple);
-                leftTuple = leftChild.getNextTuple();
-                if (leftTuple == null) {
-                    done = true;
-                    return false;
-                }
-                rightChild.initialize();
-            }
-            if (leftTuple == null) {
-                done = true;
-                return false;
-            }
-            return true;
-        }
+        //System.out.println(leftTuple.toString() + " " +
+//        rightTuple.toString());
+        return true;
 
     }
 

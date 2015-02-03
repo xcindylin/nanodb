@@ -218,8 +218,12 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
         rightTuple = rightChild.getNextTuple();
         if (rightTuple == null) {
             // If haven't matched and doing an outer join, set right to null
+
             if (!matched && (joinType == JoinType.LEFT_OUTER ||
                     joinType == JoinType.RIGHT_OUTER)) {
+
+            if (!matched && (joinType == JoinType.LEFT_OUTER || joinType == JoinType.RIGHT_OUTER)) {
+
                 rightTuple = NULL_TUPLE;
                 matched = false;
                 return true;
@@ -235,11 +239,17 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
                 }
             }
         }
+
         //System.out.println(leftTuple.toString() + " " +
 //        rightTuple.toString());
-        return true;
 
+        //System.out.println(leftTuple.toString() + " " + rightTuple.toString());
+
+        }
+        return true;
     }
+
+
 
     private boolean canJoinTuples() {
         // If the predicate was not set, we can always join them!

@@ -40,12 +40,9 @@ public class SimpleExpProc implements ExpressionProcessor{
                     }
 
                 }
-//                if (!seenFunctions.contains((FunctionCall) node)) {
-//                    aggregates.put("#" + aggregates.size(), (FunctionCall) node);
-//                    seenFunctions.add((FunctionCall) node);
-//                }
+
                 aggregates.put("#" + aggregates.size(), (FunctionCall) node);
-//                aggregates.put(node.simplify().toString(), (FunctionCall) node);
+
             }
         }
     }
@@ -61,14 +58,6 @@ public class SimpleExpProc implements ExpressionProcessor{
         }
 
         return node;
-
-
-//        if (hasAggregate) {
-//            hasAggregate = false;
-//            return new ColumnValue(new ColumnName("#" + (aggregates.size()-1)));
-//        }
-//        else
-//            return node;
     }
 
 

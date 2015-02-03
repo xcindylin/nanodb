@@ -43,7 +43,7 @@ public class SimplePlanner implements Planner {
     }
 
 
-    /**
+    /** Freestyle
      * Returns the root of a plan tree suitable for executing the specified
      * query.
      *
@@ -57,22 +57,11 @@ public class SimplePlanner implements Planner {
     @Override
     public PlanNode makePlan(SelectClause selClause,
         List<SelectClause> enclosingSelects) throws IOException {
-        // TODO:  Implement!
-
-
-
-        System.out.println("done");
-
-        // For HW1, we have a very simple implementation that defers to
-        // makeSimpleSelect() to handle simple SELECT queries with one table,
-        // and an optional WHERE clause.
 
         if (enclosingSelects != null && !enclosingSelects.isEmpty()) {
             throw new UnsupportedOperationException(
                 "Not yet implemented:  enclosing queries!");
         }
-
-        System.out.println(selClause.toString() + "\n");
 
         FromClause fromClause = selClause.getFromClause();
         PlanNode planNode = handleFromClause(selClause, fromClause);
@@ -84,6 +73,11 @@ public class SimplePlanner implements Planner {
         if (processor.getAggregates().size() > 0 || selClause.getGroupByExprs().size() > 0) {
             planNode = new HashedGroupAggregateNode(planNode,
                     selClause.getGroupByExprs(), processor.getAggregates());
+            planNode.prepare();
+        }
+
+        if (selClause.getHavingExpr() != null) {
+            planNode = new SimpleFilterNode(planNode, selClause.getHavingExpr());
             planNode.prepare();
         }
 
@@ -101,6 +95,11 @@ public class SimplePlanner implements Planner {
         return planNode;
     }
 
+    /**
+     *
+     * @param processor
+     * @param selClause
+     */
     public void handleAggregates(SimpleExpProc processor, SelectClause selClause) {
         // Check where clause for Aggregate
         int prevSize = processor.getAggregates().size();
@@ -108,16 +107,18 @@ public class SimplePlanner implements Planner {
         if (selClause.getWhereExpr() != null) {
             selClause.getWhereExpr().traverse(processor);
             if (processor.getAggregates().size() > prevSize)
-                throw new IllegalArgumentException("Cannot have aggregates inside WHERE clause");
+                throw new IllegalArgumentException("Cannot have" +
+                        " aggregates inside WHERE clause");
         }
 
-//        if (selClause.getFromClause() != null) {
-//            if (selClause.getFromClause().getOnExpression() != null) {
-//                selClause.getFromClause().getOnExpression().traverse(processor);
-//                if (processor.getAggregates().size() > prevSize)
-//                    throw new IllegalArgumentException("Cannot have aggregates inside ON clause");
-//            }
-//        }
+        if (selClause.getFromClause() != null) {
+            if (selClause.getFromClause().isJoinExpr()) {
+                selClause.getFromClause().getOnExpression().traverse(processor);
+                if (processor.getAggregates().size() > prevSize)
+                    throw new IllegalArgumentException("Cannot have" +
+                            " aggregates inside ON clause");
+            }
+        }
 
         List<SelectValue> values = selClause.getSelectValues();
         for(SelectValue sv : values) {
@@ -144,7 +145,8 @@ public class SimplePlanner implements Planner {
             Expression predicate = null;
             if (selClause != null)
                 predicate = selClause.getWhereExpr();
-            planNode = makeSimpleSelect(fromClause.getTableName(), predicate, null);
+            planNode = makeSimpleSelect(fromClause.getTableName(),
+                    predicate, null);
             if (fromClause.isRenamed()) {
                 planNode = new RenameNode(planNode, fromClause.getResultName());
             }
@@ -168,9 +170,6 @@ public class SimplePlanner implements Planner {
     public PlanNode handleJoinExpr(FromClause fromClause) throws IOException {
         FromClause leftClause = fromClause.getLeftChild();
         FromClause rightClause = fromClause.getRightChild();
-
-        System.out.println(leftClause.toString());
-        System.out.println(rightClause.toString());
 
         PlanNode leftPlan = handleFromClause(null, leftClause);
         PlanNode rightPlan = handleFromClause(null, rightClause);
@@ -233,7 +232,8 @@ public class SimplePlanner implements Planner {
     }
 
     // Freestyle
-    public ProjectNode makeSimpleProject(List<SelectValue> projectionSpec) throws IOException {
+    public ProjectNode makeSimpleProject(List<SelectValue> projectionSpec)
+            throws IOException {
         ProjectNode projectNode = new ProjectNode(projectionSpec);
         projectNode.prepare();
         return projectNode;

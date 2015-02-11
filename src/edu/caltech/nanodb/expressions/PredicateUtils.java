@@ -1,6 +1,5 @@
 package edu.caltech.nanodb.expressions;
 
-import java.util.ArrayList;
 import java.util.Collection;
 
 
@@ -40,14 +39,5 @@ public class PredicateUtils {
                 BooleanOperator.Type.AND_EXPR, conjuncts);
         }
         return predicate;
-    }
-
-
-    public static Expression makePredicate(Expression... conjuncts) {
-        ArrayList<Expression> list = new ArrayList<Expression>();
-        for (Expression conjunct : conjuncts)
-            list.add(conjunct);
-
-        return makePredicate(list);
     }
 }

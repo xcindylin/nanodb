@@ -42,12 +42,6 @@ public class HeapFilePageTuple extends PageTuple {
                 "slot must be nonnegative; got " + slot);
         }
 
-        if (DataPage.getSlotValue(dbPage, slot) != pageOffset) {
-            throw new IllegalArgumentException(String.format(
-                "Offset %d in slot %d doesn't match pageOffset value %d",
-                DataPage.getSlotValue(dbPage, slot), slot, pageOffset));
-        }
-
         this.slot = slot;
     }
 

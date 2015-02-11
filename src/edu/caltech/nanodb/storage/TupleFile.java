@@ -42,10 +42,7 @@ public interface TupleFile {
 
 
     /**
-     * Returns statistics describing the data in this tuple file.  Note that
-     * there is no corresponding "set-stats" method, because the
-     * {@link #analyze} method is the intended way of updating a tuple file's
-     * statistics.
+     * Returns statistics describing the data in this tuple file.
      *
      * @return statistics describing the data in this tuple file.
      */

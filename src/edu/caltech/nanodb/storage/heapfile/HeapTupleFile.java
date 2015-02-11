@@ -4,11 +4,15 @@ package edu.caltech.nanodb.storage.heapfile;
 import java.io.EOFException;
 import java.io.IOException;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 //import com.sun.xml.internal.ws.client.sei.ResponseBuilder;
+import edu.caltech.nanodb.qeval.ColumnStats;
+import edu.caltech.nanodb.qeval.ColumnStatsCollector;
 import edu.caltech.nanodb.relations.ColumnType;
+import edu.caltech.nanodb.relations.SQLDataType;
 import org.apache.log4j.Logger;
 
 import edu.caltech.nanodb.qeval.TableStats;
@@ -40,6 +44,14 @@ public class HeapTupleFile implements TupleFile {
     private StorageManager storageManager;
 
 
+    /**
+     * The manager for heap tuple files provides some higher-level operations
+     * such as saving the metadata of a heap tuple file, so it's useful to
+     * have a reference to it.
+     */
+    private HeapTupleFileManager heapFileManager;
+
+
     /** The schema of tuples in this tuple file. */
     private TableSchema schema;
 
@@ -52,10 +64,14 @@ public class HeapTupleFile implements TupleFile {
     private DBFile dbFile;
 
 
-    public HeapTupleFile(StorageManager storageManager, DBFile dbFile,
+    public HeapTupleFile(StorageManager storageManager,
+                         HeapTupleFileManager heapFileManager, DBFile dbFile,
                          TableSchema schema, TableStats stats) {
         if (storageManager == null)
             throw new IllegalArgumentException("storageManager cannot be null");
+
+        if (heapFileManager == null)
+            throw new IllegalArgumentException("heapFileManager cannot be null");
 
         if (dbFile == null)
             throw new IllegalArgumentException("dbFile cannot be null");
@@ -67,6 +83,7 @@ public class HeapTupleFile implements TupleFile {
             throw new IllegalArgumentException("stats cannot be null");
 
         this.storageManager = storageManager;
+        this.heapFileManager = heapFileManager;
         this.dbFile = dbFile;
         this.schema = schema;
         this.stats = stats;
@@ -125,7 +142,7 @@ public class HeapTupleFile implements TupleFile {
         catch (EOFException e) {
             // We ran out of pages.  No tuples in the file!
             logger.debug("No tuples in table-file " + dbFile +
-                         ".  Returning null.");
+                    ".  Returning null.");
         }
 
         return null;
@@ -142,7 +159,7 @@ public class HeapTupleFile implements TupleFile {
      */
     @Override
     public Tuple getTuple(FilePointer fptr)
-        throws InvalidFilePointerException, IOException {
+            throws InvalidFilePointerException, IOException {
 
         DBPage dbPage;
         try {
@@ -151,8 +168,8 @@ public class HeapTupleFile implements TupleFile {
         }
         catch (EOFException eofe) {
             throw new InvalidFilePointerException("Specified page " +
-                fptr.getPageNo() + " doesn't exist in file " +
-                dbFile.getDataFile().getName(), eofe);
+                    fptr.getPageNo() + " doesn't exist in file " +
+                    dbFile.getDataFile().getName(), eofe);
         }
 
         // The file-pointer points to the slot for the tuple, not the tuple itself.
@@ -172,7 +189,7 @@ public class HeapTupleFile implements TupleFile {
         int offset = DataPage.getSlotValue(dbPage, slot);
         if (offset == DataPage.EMPTY_SLOT) {
             throw new InvalidFilePointerException("Slot " + slot +
-                " on page " + fptr.getPageNo() + " is empty.");
+                    " on page " + fptr.getPageNo() + " is empty.");
         }
 
         return new HeapFilePageTuple(schema, dbPage, slot, offset);
@@ -197,7 +214,7 @@ public class HeapTupleFile implements TupleFile {
 
         if (!(tup instanceof HeapFilePageTuple)) {
             throw new IllegalArgumentException(
-                "Tuple must be of type HeapFilePageTuple; got " + tup.getClass());
+                    "Tuple must be of type HeapFilePageTuple; got " + tup.getClass());
         }
         HeapFilePageTuple ptup = (HeapFilePageTuple) tup;
 
@@ -212,7 +229,7 @@ public class HeapTupleFile implements TupleFile {
                 int nextOffset = DataPage.getSlotValue(dbPage, nextSlot);
                 if (nextOffset != DataPage.EMPTY_SLOT) {
                     return new HeapFilePageTuple(schema, dbPage, nextSlot,
-                                                 nextOffset);
+                            nextOffset);
                 }
 
                 nextSlot++;
@@ -224,7 +241,7 @@ public class HeapTupleFile implements TupleFile {
 
             try {
                 DBPage nextDBPage =
-                    storageManager.loadDBPage(dbFile, dbPage.getPageNo() + 1);
+                        storageManager.loadDBPage(dbFile, dbPage.getPageNo() + 1);
                 dbPage.unpin();
                 dbPage = nextDBPage;
 
@@ -255,94 +272,6 @@ public class HeapTupleFile implements TupleFile {
      *         inefficiency is simply in estimating the size required for the
      *         new tuple.)
      */
-//    @Override
-//    public Tuple addTuple(Tuple tup) throws IOException {
-//
-//        /*
-//         * Check to see whether any constraints are violated by
-//         * adding this tuple
-//         *
-//         * Find out how large the new tuple will be, so we can find a page to
-//         * store it.
-//         *
-//         * Find a page with space for the new tuple.
-//         *
-//         * Generate the data necessary for storing the tuple into the file.
-//         */
-//
-//        int tupSize = PageTuple.getTupleStorageSize(schema, tup);
-//        logger.debug("Adding new tuple of size " + tupSize + " bytes.");
-//
-//        // Sanity check:  Make sure that the tuple would actually fit in a page
-//        // in the first place!
-//        // The "+ 2" is for the case where we need a new slot entry as well.
-//        if (tupSize + 2 > dbFile.getPageSize()) {
-//            throw new IOException("Tuple size " + tupSize +
-//                " is larger than page size " + dbFile.getPageSize() + ".");
-//        }
-//
-//        // Search for a page to put the tuple in.  If we hit the end of the
-//        // data file, create a new page.
-//        int pageNo = 1;
-//        DBPage dbPage = null;
-//        while (true) {
-//            // Try to load the page without creating a new one.
-//            try {
-//                dbPage = storageManager.loadDBPage(dbFile, pageNo);
-//            }
-//            catch (EOFException eofe) {
-//                // Couldn't load the current page, because it doesn't exist.
-//                // Break out of the loop.
-//                logger.debug("Reached end of data file without finding " +
-//                             "space for new tuple.");
-//                break;
-//            }
-//
-//            int freeSpace = DataPage.getFreeSpaceInPage(dbPage);
-//
-//            logger.trace(String.format("Page %d has %d bytes of free space.",
-//                         pageNo, freeSpace));
-//
-//            // If this page has enough free space to add a new tuple, break
-//            // out of the loop.  (The "+ 2" is for the new slot entry we will
-//            // also need.)
-//            if (freeSpace >= tupSize + 2) {
-//                logger.debug("Found space for new tuple in page " + pageNo + ".");
-//                break;
-//            }
-//
-//            // If we reached this point then the page doesn't have enough
-//            // space, so go on to the next data page.
-//            dbPage.unpin();
-//            dbPage = null;
-//            pageNo++;
-//        }
-//
-//        if (dbPage == null) {
-//            // Try to create a new page at the end of the file.  In this
-//            // circumstance, pageNo is *just past* the last page in the data
-//            // file.
-//            logger.debug("Creating new page " + pageNo + " to store new tuple.");
-//            dbPage = storageManager.loadDBPage(dbFile, pageNo, true);
-//            DataPage.initNewPage(dbPage);
-//        }
-//
-//        int slot = DataPage.allocNewTuple(dbPage, tupSize);
-//        int tupOffset = DataPage.getSlotValue(dbPage, slot);
-//
-//        logger.debug(String.format(
-//            "New tuple will reside on page %d, slot %d.", pageNo, slot));
-//
-//        HeapFilePageTuple pageTup =
-//            HeapFilePageTuple.storeNewTuple(schema, dbPage, slot, tupOffset, tup);
-//
-//        DataPage.sanityCheck(dbPage);
-//
-//        // Unpin page after adding tuple
-//        dbPage.unpin();
-//
-//        return pageTup;
-//    }
 
     @Override
     public Tuple addTuple(Tuple tup) throws IOException {
@@ -479,11 +408,11 @@ public class HeapTupleFile implements TupleFile {
      */
     @Override
     public void updateTuple(Tuple tup, Map<String, Object> newValues)
-        throws IOException {
+            throws IOException {
 
         if (!(tup instanceof HeapFilePageTuple)) {
             throw new IllegalArgumentException(
-                "Tuple must be of type HeapFilePageTuple; got " + tup.getClass());
+                    "Tuple must be of type HeapFilePageTuple; got " + tup.getClass());
         }
         HeapFilePageTuple ptup = (HeapFilePageTuple) tup;
 
@@ -506,7 +435,7 @@ public class HeapTupleFile implements TupleFile {
 
         if (!(tup instanceof HeapFilePageTuple)) {
             throw new IllegalArgumentException(
-                "Tuple must be of type HeapFilePageTuple; got " + tup.getClass());
+                    "Tuple must be of type HeapFilePageTuple; got " + tup.getClass());
         }
         HeapFilePageTuple ptup = (HeapFilePageTuple) tup;
 
@@ -558,8 +487,65 @@ public class HeapTupleFile implements TupleFile {
 
     @Override
     public void analyze() throws IOException {
-        // TODO!
-        throw new UnsupportedOperationException("Not yet implemented!");
+        int numTuples = 0;
+        int totalTupleSize = 0;
+        int numPages = dbFile.getNumPages() - 1;
+        ArrayList<ColumnStatsCollector> columns = new ArrayList<ColumnStatsCollector>();
+        for (int i = 0; i < schema.numColumns(); i++) {
+            columns.add(new ColumnStatsCollector(schema.getColumnInfo(i).getType().getBaseType()));
+        }
+
+        try {
+            // Scan through the data pages until we hit the end of the table
+            // file.  It may be that the first run of data pages is empty,
+            // so just keep looking until we hit the end of the file.
+
+            // Header page is page 0, so first data page is page 1.
+
+            for (int iPage = 1; iPage <= numPages ; iPage++) {
+                DBPage dbPage = storageManager.loadDBPage(dbFile, iPage);
+                totalTupleSize += DataPage.getTupleDataEnd(dbPage)
+                        - DataPage.getTupleDataStart(dbPage);
+
+                int numSlots = DataPage.getNumSlots(dbPage);
+                for (int iSlot = 0; iSlot < numSlots; iSlot++) {
+                    // Get the offset of the tuple in the page.  If it's 0 then
+                    // the slot is empty, and we skip to the next slot.
+                    int offset = DataPage.getSlotValue(dbPage, iSlot);
+                    if (offset == DataPage.EMPTY_SLOT)
+                        continue;
+
+                    // This is the first tuple in the file.  Build up the
+                    // HeapFilePageTuple object
+                    HeapFilePageTuple currTuple = new
+                            HeapFilePageTuple(schema, dbPage, iSlot, offset);
+                    numTuples += 1;
+                    totalTupleSize += currTuple.getSize();
+
+                    for (int i = 0; i < currTuple.getColumnCount(); i++) {
+                        columns.get(i).addValue(currTuple.getColumnValue(i));
+                    }
+
+                }
+
+                // If we got here, the page has no tuples.  Unpin the page.
+                dbPage.unpin();
+            }
+        }
+        catch (EOFException e) {
+            // We ran out of pages.  No tuples in the file!
+            logger.debug("No tuples in table-file " + dbFile +
+                    ".  Returning null.");
+        }
+
+        ArrayList<ColumnStats> columnStats = new ArrayList<ColumnStats>();
+        for (ColumnStatsCollector column: columns) {
+            columnStats.add(column.getColumnStats());
+        }
+
+        stats = new TableStats(numPages,
+                numTuples, (float) totalTupleSize / numTuples, columnStats);
+        heapFileManager.saveMetadata(this);
     }
 
     @Override

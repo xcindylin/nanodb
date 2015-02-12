@@ -476,7 +476,7 @@ public class HeapTupleFile implements TupleFile {
 
         // Keep track of total Tuple Size in bytes to get the average tuple
         // size later
-        int totalTupleSize = 0;
+        float totalTupleSize = 0;
 
         // Number of Pages is total number of pages minus the header page
         int numPages = dbFile.getNumPages() - 1;
@@ -487,49 +487,43 @@ public class HeapTupleFile implements TupleFile {
             columns.add(new ColumnStatsCollector(schema.getColumnInfo(i).getType().getBaseType()));
         }
 
-        try {
-            // Scan through the data pages until we hit the end of the table
-            // file.  It may be that the first run of data pages is empty,
-            // so just keep looking until we hit the end of the file.
+        // Scan through the data pages until we hit the end of the table
+        // file.  It may be that the first run of data pages is empty,
+        // so just keep looking until we hit the end of the file.
 
-            // Header page is page 0, so first data page is page 1.
+        // Header page is page 0, so first data page is page 1.
 
-            for (int iPage = 1; iPage <= numPages ; iPage++) {
-                DBPage dbPage = storageManager.loadDBPage(dbFile, iPage);
-                totalTupleSize += DataPage.getTupleDataEnd(dbPage)
-                        - DataPage.getTupleDataStart(dbPage);
+        for (int iPage = 1; iPage <= numPages ; iPage++) {
+            DBPage dbPage = storageManager.loadDBPage(dbFile, iPage);
+            totalTupleSize += DataPage.getTupleDataEnd(dbPage)
+                    - DataPage.getTupleDataStart(dbPage);
 
-                int numSlots = DataPage.getNumSlots(dbPage);
-                for (int iSlot = 0; iSlot < numSlots; iSlot++) {
-                    // Get the offset of the tuple in the page.  If it's 0 then
-                    // the slot is empty, and we skip to the next slot.
-                    int offset = DataPage.getSlotValue(dbPage, iSlot);
-                    if (offset == DataPage.EMPTY_SLOT)
-                        continue;
+            int numSlots = DataPage.getNumSlots(dbPage);
+            for (int iSlot = 0; iSlot < numSlots; iSlot++) {
+                // Get the offset of the tuple in the page.  If it's 0 then
+                // the slot is empty, and we skip to the next slot.
+                int offset = DataPage.getSlotValue(dbPage, iSlot);
+                if (offset == DataPage.EMPTY_SLOT)
+                    continue;
 
-                    // Get the next tuple
-                    HeapFilePageTuple currTuple = new
-                            HeapFilePageTuple(schema, dbPage, iSlot, offset);
+                // Get the next tuple
+                HeapFilePageTuple currTuple = new
+                        HeapFilePageTuple(schema, dbPage, iSlot, offset);
 
-                    // Update tuple stats
-                    numTuples += 1;
-                    totalTupleSize += currTuple.getSize();
+                // Update tuple stats
+                numTuples += 1;
+//                    totalTupleSize += currTuple.getSize();
+                totalTupleSize += PageTuple.getTupleStorageSize(schema, currTuple);
 
-                    // Update column stats using ColumnStatsCollector
-                    for (int i = 0; i < currTuple.getColumnCount(); i++) {
-                        columns.get(i).addValue(currTuple.getColumnValue(i));
-                    }
-
+                // Update column stats using ColumnStatsCollector
+                for (int i = 0; i < currTuple.getColumnCount(); i++) {
+                    columns.get(i).addValue(currTuple.getColumnValue(i));
                 }
 
-                // We are done with the page.  Unpin the page.
-                dbPage.unpin();
             }
-        }
-        catch (EOFException e) {
-            // We ran out of pages.  No tuples in the file!
-            logger.debug("No tuples in table-file " + dbFile +
-                    ".  Returning null.");
+
+            // We are done with the page.  Unpin the page.
+            dbPage.unpin();
         }
 
 
@@ -539,7 +533,7 @@ public class HeapTupleFile implements TupleFile {
             columnStats.add(column.getColumnStats());
         }
         stats = new TableStats(numPages,
-                numTuples, (float) totalTupleSize / numTuples, columnStats);
+                numTuples, totalTupleSize / numTuples, columnStats);
 
         // Save the statistics
         heapFileManager.saveMetadata(this);

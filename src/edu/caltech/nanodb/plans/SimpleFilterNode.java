@@ -5,6 +5,7 @@ import java.io.IOException;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.log4j.Logger;
 
 import edu.caltech.nanodb.expressions.Expression;
 import edu.caltech.nanodb.expressions.OrderByExpression;
@@ -18,6 +19,8 @@ import edu.caltech.nanodb.qeval.SelectivityEstimator;
  * predicate.
  */
 public class SimpleFilterNode extends SelectNode {
+    /** A logging object for reporting anything interesting that happens. */
+    private static Logger logger = Logger.getLogger(SimpleFilterNode.class);
 
     public SimpleFilterNode(PlanNode child, Expression predicate) {
         super(child, predicate);
@@ -113,8 +116,20 @@ public class SimpleFilterNode extends SelectNode {
         schema = leftChild.getSchema();
         ArrayList<ColumnStats> childStats = leftChild.getStats();
 
-        // TODO:  Compute the cost of the plan node!
-        cost = null;
+        // Grab the left child's cost, then update the cost based on the cost
+        // of sorting.
+
+        PlanCost childCost = leftChild.getCost();
+        if (childCost != null) {
+            cost = new PlanCost(childCost);
+
+            // Sorting in memory is an N*log(N) operation.
+            cost.cpuCost += cost.numTuples * (float) Math.log(cost.numTuples);
+        }
+        else {
+            logger.info(
+                    "Child's cost not available; not computing this node's cost.");
+        }
 
         // TODO:  We should also update the table statistics based on the
         //        predicate, but that's too complicated, so we'll leave them

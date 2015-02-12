@@ -150,6 +150,8 @@ public class SelectivityEstimator {
         int numExpression = bool.getNumTerms();
 
         switch (bool.getType()) {
+
+        // Multiply the selectivities if
         case AND_EXPR:
             for (int i = 0; i < numExpression; i++) {
                 selectivity *= estimateSelectivity(bool.getTerm(i),

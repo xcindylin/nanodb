@@ -512,8 +512,6 @@ public class HeapTupleFile implements TupleFile {
 
                 // Update tuple stats
                 numTuples += 1;
-//                    totalTupleSize += currTuple.getSize();
-                totalTupleSize += PageTuple.getTupleStorageSize(schema, currTuple);
 
                 // Update column stats using ColumnStatsCollector
                 for (int i = 0; i < currTuple.getColumnCount(); i++) {

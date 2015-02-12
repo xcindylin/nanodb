@@ -116,19 +116,20 @@ public class SimpleFilterNode extends SelectNode {
         schema = leftChild.getSchema();
         ArrayList<ColumnStats> childStats = leftChild.getStats();
 
-        // Grab the left child's cost, then update the cost based on the cost
-        // of sorting.
+        // Grab the left child's cost, then update the cost based on the number
+        // of tuples
 
         PlanCost childCost = leftChild.getCost();
         if (childCost != null) {
             cost = new PlanCost(childCost);
 
-            // Sorting in memory is an N*log(N) operation.
-            cost.cpuCost += cost.numTuples * (float) Math.log(cost.numTuples);
+            // Filtering simply requires going through all tuples once.
+            cost.cpuCost += cost.numTuples;
         }
         else {
             logger.info(
                     "Child's cost not available; not computing this node's cost.");
+            cost = null;
         }
 
         // TODO:  We should also update the table statistics based on the

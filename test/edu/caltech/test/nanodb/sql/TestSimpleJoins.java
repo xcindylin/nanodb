@@ -158,7 +158,7 @@ public class TestSimpleJoins extends SqlTestCase {
     public void testLeftOuterJoinEmpty() throws Throwable {
         CommandResult result = server.doCommand(
                 "SELECT * FROM test_join_c LEFT OUTER JOIN test_join_d" +
-                        "ON test_join_c.a = test_join_d.a", true);
+                        " ON test_join_c.a = test_join_d.a", true);
         assert result.getTuples().size() == 0;
     }
 

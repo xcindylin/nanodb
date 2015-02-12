@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.util.List;
 
 import edu.caltech.nanodb.expressions.TupleLiteral;
+import edu.caltech.nanodb.qeval.PlanCost;
 import org.apache.log4j.Logger;
 
 import edu.caltech.nanodb.expressions.Expression;
@@ -161,8 +162,48 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
         // Use the parent class' helper-function to prepare the schema.
         prepareSchemaStats();
 
-        // TODO:  Implement the rest
-        cost = null;
+        // Grab the left and right child's cost, then update the cost based on the number
+        // kind of join
+
+        PlanCost leftChildCost = leftChild.getCost();
+        PlanCost rightChildCost = rightChild.getCost();
+        if (leftChildCost != null && rightChildCost != null) {
+            float numTuples = leftChildCost.numTuples;
+            float tupleSize = leftChildCost.tupleSize;
+            // If a semijoin, then we assume best case time where each left tuple
+            // matches with a right tuple in constant time so cost is
+            // just number of left tuples
+            // Otherwise we have to go through each right tuple for each left tuple
+            if (joinType != JoinType.SEMIJOIN) {
+                numTuples *= rightChildCost.numTuples;
+                // If doing a left outer or right outer and the right side is empty
+                // then cost is just number of left tuples
+                if (rightChildCost.numTuples == 0 && (joinType == JoinType.LEFT_OUTER ||
+                    joinType == JoinType.RIGHT_OUTER || joinType == JoinType.FULL_OUTER ||
+                    joinType == JoinType.ANTIJOIN)) {
+                    numTuples = leftChildCost.numTuples;
+                }
+            } else {
+                numTuples = leftChildCost.numTuples;
+            }
+
+            // Comparing a pair of tuples takes constant time, so cpu cost is number of tuples
+            float cpuCost = numTuples;
+
+            // If not doing semi and anti then add tuple size of right
+            if (joinType != JoinType.ANTIJOIN && joinType != JoinType.SEMIJOIN) {
+                tupleSize += rightChildCost.tupleSize;
+            }
+
+            // Simply sum blockIOs of both left and right
+            long numBlockIOs = leftChildCost.numBlockIOs + rightChildCost.numBlockIOs;
+            cost = new PlanCost(numTuples, cpuCost, tupleSize, numBlockIOs);
+        }
+        else {
+            logger.info(
+                    "Child's cost not available; not computing this node's cost.");
+            cost = null;
+        }
     }
 
 
@@ -231,9 +272,6 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
             return false;
         }
 
-        if (rightTuple != null)
-            System.out.println(leftTuple.toString() + " " + rightTuple.toString());
-
         // If matched and doing semi, then advance left and reset right
         if (matched && joinType == JoinType.SEMIJOIN) {
             leftTuple = leftChild.getNextTuple();
@@ -265,6 +303,10 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
             rightTuple = rightChild.getNextTuple();
             if (rightTuple == null && (joinType == JoinType.LEFT_OUTER || joinType == JoinType.RIGHT_OUTER)) {
                 rightTuple = NULL_TUPLE;
+            }
+            if (rightTuple == null && (joinType == JoinType.INNER)) {
+                done = true;
+                return false;
             }
             leftTuple = leftChild.getNextTuple();
             matched = false;

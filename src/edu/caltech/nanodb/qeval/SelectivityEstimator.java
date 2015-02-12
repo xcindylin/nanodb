@@ -17,6 +17,7 @@ import edu.caltech.nanodb.relations.SQLDataType;
 import edu.caltech.nanodb.relations.Schema;
 
 import org.apache.log4j.Logger;
+import org.omg.CosNaming._NamingContextExtStub;
 
 
 /**
@@ -161,6 +162,7 @@ public class SelectivityEstimator {
                 selectivity *= (1.0f - estimateSelectivity(bool.getTerm(i),
                         exprSchema, stats));
             }
+            selectivity = 1.0f - selectivity;
             break;
 
         case NOT_EXPR:
@@ -272,52 +274,105 @@ public class SelectivityEstimator {
 
         Object value = literalValue.evaluate();
 
+        Object minVal = colStats.getMinValue();
+        Object maxVal = colStats.getMaxValue();
+
+        // If values unknown then return default
+        if (minVal == null || maxVal == null) {
+            return selectivity;
+        }
+
         switch (compType) {
         case EQUALS:
         case NOT_EQUALS:
-            // Compute the equality value.  Then, if inequality, invert the
-            // result.
+            // Estimate selectivity to be 1 / number of unique numbers in column
+            float numUniqueValues = colStats.getNumUniqueValues();
 
-            // TODO:  Compute the selectivity.  Note that the ColumnStats type
-            //        will return special values to indicate "unknown" stats;
-            //        your code should detect when this is the case, and fall
-            //        back on the default selectivity.
+            // If the number of unique values are unknown then stay with the
+            // default selectivity
+            if (numUniqueValues == -1) {
+                break;
+            }
 
+            // Estimate selectivity to be 1 / number of unique numbers in column
+            selectivity = 1 / numUniqueValues;
+
+            // If not equal, invert
+            if(compType == CompareOperator.Type.NOT_EQUALS) {
+                selectivity = 1 - selectivity;
+            }
             break;
 
         case GREATER_OR_EQUAL:
         case LESS_THAN:
-            // Compute the greater-or-equal value.  Then, if less-than,
-            // invert the result.
-
             // Only estimate selectivity for this kind of expression if the
             // column's type supports it.
 
             if (typeSupportsCompareEstimates(sqlType) &&
                 colStats.hasDifferentMinMaxValues()) {
 
-                // TODO:  Compute the selectivity.  The if-condition ensures
-                //        that you will only compute selectivities if the type
-                //        supports it, and if there are valid stats.
+                // If min(Col) > value, then all tuples are included
+                if (computeDifference(value, minVal) < 0.0f) {
+                    selectivity = 1.0f;
+                }
+                // If max(Col) < value, then none of the tuples are included
+                else if (computeDifference(value, maxVal) > 0.0f) {
+                    selectivity = 0.0f;
+                }
+                // If min(col) < value < max(Col), then calculate ratio of
+                // included values
+                else {
+                    selectivity = computeRatio(value, maxVal, minVal, maxVal);
+                }
+            }
+            // If column stats has the same min / max value
+            // Check for equality
+            else if (typeSupportsCompareEstimates(sqlType)) {
+                if (computeDifference(value, minVal) == 0.0f) {
+                    selectivity = 1.0f;
+                }
+            }
+
+            // If less than, invert
+            if (compType == CompareOperator.Type.LESS_THAN) {
+                selectivity = 1.0f - selectivity;
             }
 
             break;
 
         case LESS_OR_EQUAL:
         case GREATER_THAN:
-            // Compute the less-or-equal value.  Then, if greater-than,
-            // invert the result.
-
             // Only estimate selectivity for this kind of expression if the
             // column's type supports it.
-
             if (typeSupportsCompareEstimates(sqlType) &&
                 colStats.hasDifferentMinMaxValues()) {
 
-                // TODO:  Compute the selectivity.  Watch out for cut-and-paste
-                //        bugs...
+                // If min(Col) < value, then none tuples are included
+                if (computeDifference(value, minVal) < 0.0f) {
+                    selectivity = 0.0f;
+                }
+                // If max(Col) > value, then none of the tuples are included
+                else if (computeDifference(value, maxVal) > 0.0f) {
+                    selectivity = 1.0f;
+                }
+                // If min(col) < value < max(Col), then calculate ratio of
+                // included values
+                else {
+                    selectivity = computeRatio(minVal, value, minVal, maxVal);
+                }
+            }
+            // If column stats has the same min / max value
+            // Check for equality
+            else if (typeSupportsCompareEstimates(sqlType)) {
+                if (computeDifference(value, minVal) == 0.0f) {
+                    selectivity = 1.0f;
+                }
             }
 
+            // If greater than, invert
+            if (compType == CompareOperator.Type.GREATER_THAN) {
+                selectivity = 1.0f - selectivity;
+            }
             break;
 
         default:
@@ -363,10 +418,60 @@ public class SelectivityEstimator {
         ColumnStats colOneStats = stats.get(colOneIndex);
         ColumnStats colTwoStats = stats.get(colTwoIndex);
 
-        // TODO:  Compute the selectivity.  Note that the ColumnStats type
-        //        will return special values to indicate "unknown" stats;
-        //        your code should detect when this is the case, and fall
-        //        back on the default selectivity.
+        Object minValOne = colOneStats.getMinValue();
+        Object maxValOne = colOneStats.getMaxValue();
+        Object minValTwo = colTwoStats.getMinValue();
+        Object maxValTwo = colTwoStats.getMaxValue();
+
+        int numUniqueValOne = colOneStats.getNumUniqueValues();
+        int numUniqueValTwo = colTwoStats.getNumUniqueValues();
+
+        // Detect unknown stats and return default if there are any
+        if (minValOne == null || minValTwo == null || numUniqueValOne == -1 ||
+                numUniqueValTwo == -1) {
+            return selectivity;
+        }
+
+        if (computeDifference(minValOne, maxValTwo) > 0) {
+            // If col one's values are greater than all of col two's values
+            selectivity = 0.0f;
+        }
+        else if (computeDifference(maxValOne, minValTwo) < 0) {
+            // If col two's values are greater than all of col one's values
+            selectivity = 0.0f;
+        }
+        else if (!colOneStats.hasDifferentMinMaxValues() &&
+                !colTwoStats.hasDifferentMinMaxValues()) {
+            // If col one has the same min / max and col two has the same min
+            //  and max, If equal, then we select all
+            if (computeDifference(minValOne, minValOne) == 0) {
+                selectivity = 1.0f;
+            }
+        }
+        else if (!colOneStats.hasDifferentMinMaxValues()) {
+            // Column One has the same max / min value
+            // Column Two has a range, so selectivity is
+            // 1 / number of unique values in two assuming uniform distribution
+            selectivity = 1.0f / numUniqueValTwo;
+        }
+        else if (!colTwoStats.hasDifferentMinMaxValues()) {
+            // Column Two has the same max / min value
+            // Column One has a range, so selectivity is
+            // 1 / number of unique values in one assuming uniform distribution
+            selectivity = 1.0f / numUniqueValOne;
+        }
+        else if (computeDifference(maxValOne, minValTwo) > 0){
+            // If minValOne < minValTwo < maxValOne < maxValTwo
+            // Compute the ratio of overlap to total range length
+            selectivity = computeRatio(minValTwo, maxValOne,
+                    minValOne, maxValTwo);
+        }
+        else if (computeDifference(minValOne, maxValTwo) < 0){
+            // If minValTwo < minValOne < maxValTwo < maxValOne
+            // Compute the ratio of overlap to total range length
+            selectivity = computeRatio(minValOne, maxValTwo,
+                    minValTwo, maxValOne);
+        }
 
         return selectivity;
     }
@@ -416,5 +521,30 @@ public class SelectivityEstimator {
             fltRatio = 1.0f;
 
         return fltRatio;
+    }
+
+    /**
+     * This method computes the difference
+     * obj1 - obj2, given
+     * <tt>Object</tt>-values that can be coerced into types that can
+     * be used for arithmetic.  This operation is useful for estimating the
+     * selectivity of comparison operations.
+     * <p>
+     *
+     * @param obj1 the left value
+     * @param obj2 the right value
+     *
+     * @return  The result of this operation is <0, 0, or >0. If obj1 is
+     * greater than obj2
+     * result will be >0. If equal, it will be 0. If obj1 is less than obj2,
+     * result will be <0.
+     */
+    private static float computeDifference(Object obj1, Object obj2) {
+
+        Object diff = ArithmeticOperator.evalObjects(
+                ArithmeticOperator.Type.SUBTRACT, obj1, obj2);
+
+        float fltDiff = TypeConverter.getFloatValue(diff);
+        return fltDiff;
     }
 }

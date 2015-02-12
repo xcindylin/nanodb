@@ -471,9 +471,17 @@ public class HeapTupleFile implements TupleFile {
 
     @Override
     public void analyze() throws IOException {
+        // Keep track of number of Tuples
         int numTuples = 0;
+
+        // Keep track of total Tuple Size in bytes to get the average tuple
+        // size later
         int totalTupleSize = 0;
+
+        // Number of Pages is total number of pages minus the header page
         int numPages = dbFile.getNumPages() - 1;
+
+        // Initialize a ColumnStatsCollector for each column
         ArrayList<ColumnStatsCollector> columns = new ArrayList<ColumnStatsCollector>();
         for (int i = 0; i < schema.numColumns(); i++) {
             columns.add(new ColumnStatsCollector(schema.getColumnInfo(i).getType().getBaseType()));
@@ -499,20 +507,22 @@ public class HeapTupleFile implements TupleFile {
                     if (offset == DataPage.EMPTY_SLOT)
                         continue;
 
-                    // This is the first tuple in the file.  Build up the
-                    // HeapFilePageTuple object
+                    // Get the next tuple
                     HeapFilePageTuple currTuple = new
                             HeapFilePageTuple(schema, dbPage, iSlot, offset);
+
+                    // Update tuple stats
                     numTuples += 1;
                     totalTupleSize += currTuple.getSize();
 
+                    // Update column stats using ColumnStatsCollector
                     for (int i = 0; i < currTuple.getColumnCount(); i++) {
                         columns.get(i).addValue(currTuple.getColumnValue(i));
                     }
 
                 }
 
-                // If we got here, the page has no tuples.  Unpin the page.
+                // We are done with the page.  Unpin the page.
                 dbPage.unpin();
             }
         }
@@ -522,13 +532,16 @@ public class HeapTupleFile implements TupleFile {
                     ".  Returning null.");
         }
 
+
+        // Save the column stats for each column and store in stats
         ArrayList<ColumnStats> columnStats = new ArrayList<ColumnStats>();
         for (ColumnStatsCollector column: columns) {
             columnStats.add(column.getColumnStats());
         }
-
         stats = new TableStats(numPages,
                 numTuples, (float) totalTupleSize / numTuples, columnStats);
+
+        // Save the statistics
         heapFileManager.saveMetadata(this);
     }
 

@@ -410,7 +410,7 @@ public class SelectivityEstimator {
 
         // Comparison:  column op column
 
-        if (compType != CompareOperator.Type.EQUALS ||
+        if (compType != CompareOperator.Type.EQUALS &&
                 compType != CompareOperator.Type.NOT_EQUALS)
             throw new IllegalArgumentException("Only Supports Column = Column"
                     + " and Column != Column");

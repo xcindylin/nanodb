@@ -280,7 +280,8 @@ public class SelectivityEstimator {
         Object maxVal = colStats.getMaxValue();
 
         // If values unknown then return default
-        if (minVal == null || maxVal == null) {
+        if (minVal == null || maxVal == null ||
+                !typeSupportsCompareEstimates(sqlType)) {
             return selectivity;
         }
 

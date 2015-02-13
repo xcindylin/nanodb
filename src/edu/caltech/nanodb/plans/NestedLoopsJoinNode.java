@@ -5,7 +5,11 @@ import java.io.IOException;
 import java.util.List;
 
 import edu.caltech.nanodb.expressions.TupleLiteral;
+import edu.caltech.nanodb.qeval.ColumnStats;
 import edu.caltech.nanodb.qeval.PlanCost;
+import edu.caltech.nanodb.qeval.SelectivityEstimator;
+import edu.caltech.nanodb.relations.ColumnInfo;
+import edu.caltech.nanodb.relations.SQLDataType;
 import org.apache.log4j.Logger;
 
 import edu.caltech.nanodb.expressions.Expression;
@@ -162,48 +166,81 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
         // Use the parent class' helper-function to prepare the schema.
         prepareSchemaStats();
 
-        // Grab the left and right child's cost, then update the cost based on the number
-        // kind of join
-
+//        // Get unique left child column and right child columns rows
+//        ColumnInfo leftColInfo = predicate.getColumnInfo(leftSchema);
+//        ColumnInfo rightColInfo = predicate.getColumnInfo(rightSchema);
+//        System.out.println(leftColInfo.toString());
+//        System.out.println(rightColInfo.toString());
+//        System.out.println(leftColInfo.getColumnName().toString());
+//        System.out.println(rightColInfo.getColumnName().toString());
+//        int leftColIndex = leftSchema.getColumnIndex(leftColInfo.getColumnName());
+//        int rightColIndex = rightSchema.getColumnIndex(rightColInfo.getColumnName());
+//
+//        System.out.println(leftColIndex);
+//        System.out.println(rightColIndex);
+//
+//        int uniqueLeft = leftStats.get(leftColIndex).getNumUniqueValues();
+//        int uniqueRight = rightStats.get(rightColIndex).getNumUniqueValues();
+//
+//        int maxUnique = uniqueLeft;
+//        if (uniqueRight > uniqueLeft) {
+//            maxUnique = uniqueRight;
+//        }
+//
         PlanCost leftChildCost = leftChild.getCost();
         PlanCost rightChildCost = rightChild.getCost();
-        if (leftChildCost != null && rightChildCost != null) {
-            float numTuples = leftChildCost.numTuples;
-            float tupleSize = leftChildCost.tupleSize;
-            // If a semijoin, then we assume best case time where each left tuple
-            // matches with a right tuple in constant time so cost is
-            // just number of left tuples
-            // Otherwise we have to go through each right tuple for each left tuple
-            if (joinType != JoinType.SEMIJOIN) {
-                numTuples *= rightChildCost.numTuples;
-                // If doing a left outer or right outer and the right side is empty
-                // then cost is just number of left tuples
-                if (rightChildCost.numTuples == 0 && (joinType == JoinType.LEFT_OUTER ||
-                    joinType == JoinType.RIGHT_OUTER || joinType == JoinType.FULL_OUTER ||
-                    joinType == JoinType.ANTIJOIN)) {
-                    numTuples = leftChildCost.numTuples;
-                }
-            } else {
-                numTuples = leftChildCost.numTuples;
-            }
 
-            // Comparing a pair of tuples takes constant time, so cpu cost is number of tuples
-            float cpuCost = numTuples;
+        float numLeft = leftChildCost.numTuples;
+        float numRight = rightChildCost.numTuples;
 
-            // If not doing semi and anti then add tuple size of right
-            if (joinType != JoinType.ANTIJOIN && joinType != JoinType.SEMIJOIN) {
-                tupleSize += rightChildCost.tupleSize;
-            }
+        float selectivity = SelectivityEstimator.estimateSelectivity(predicate, schema, stats);
+        // Tuples produced for a theta join
+        float thetaTuplesP = 0;
+        thetaTuplesP = selectivity * numLeft * numRight;
 
-            // Simply sum blockIOs of both left and right
-            long numBlockIOs = leftChildCost.numBlockIOs + rightChildCost.numBlockIOs;
-            cost = new PlanCost(numTuples, cpuCost, tupleSize, numBlockIOs);
+        // Compute number of tuples produced
+        float numTuples = 0;
+        switch(joinType) {
+            case ANTIJOIN:
+            case SEMIJOIN:
+                numTuples = numLeft;
+                break;
+            case INNER:
+                numTuples = thetaTuplesP;
+                break;
+            case RIGHT_OUTER:
+            case LEFT_OUTER:
+                numTuples = thetaTuplesP + numRight;
         }
-        else {
-            logger.info(
-                    "Child's cost not available; not computing this node's cost.");
-            cost = null;
+
+        // Compute cpu cost based on tuples consumed
+        // CPU cost scales O(n) with number of tuples consumed
+        float cpuCost = 0;
+        switch(joinType) {
+            case SEMIJOIN:
+            case INNER:
+                cpuCost = numLeft * numRight;
+                break;
+            case ANTIJOIN:
+            case RIGHT_OUTER:
+            case LEFT_OUTER:
+                cpuCost = numLeft * numRight;
+                if (numRight == 0)
+                    cpuCost = numLeft;
         }
+
+
+
+        float tupleSize = leftChildCost.tupleSize;
+        // If not doing semi and anti then add tuple size of right
+        if (joinType != JoinType.ANTIJOIN && joinType != JoinType.SEMIJOIN) {
+            tupleSize += rightChildCost.tupleSize;
+        }
+
+        // Simply sum blockIOs of both left and right
+        long numBlockIOs = leftChildCost.numBlockIOs + rightChildCost.numBlockIOs;
+        cost = new PlanCost((int) numTuples, cpuCost, tupleSize, numBlockIOs);
+
     }
 
 

@@ -170,12 +170,14 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
 
         float numLeft = leftChildCost.numTuples;
         float numRight = rightChildCost.numTuples;
-        
+
         float selectivity = SelectivityEstimator.estimateSelectivity(predicate, schema, stats);
         // Tuples produced for a theta join
         float thetaTuplesP = selectivity * numLeft * numRight;
 
         // Compute number of tuples produced
+        // Left and right outer can be treated both as left outer because we swap
+        // children if doing a right outer
         float numTuples = 0;
         switch(joinType) {
             case ANTIJOIN:

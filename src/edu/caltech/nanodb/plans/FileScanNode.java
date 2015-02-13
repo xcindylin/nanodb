@@ -184,10 +184,10 @@ public class FileScanNode extends SelectNode {
                     (predicate, schema, stats);
         }
 
-        // Use selectivity to estimate the number of tuples produced
+        // Use selectivity to estimate cost
         numTuple *= selectivity;
 
-        // Calculate cost based on number of tuples
+        // Calculate cost based on number of tuples consumed
         cost = new PlanCost(numTuple, tableStats.avgTupleSize,
                 tableStats.numTuples, tableStats.numDataPages);
 

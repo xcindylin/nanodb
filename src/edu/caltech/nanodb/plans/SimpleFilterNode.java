@@ -114,6 +114,7 @@ public class SimpleFilterNode extends SelectNode {
 
         // Grab the schema and stats from the left child.
         schema = leftChild.getSchema();
+        stats = leftChild.getStats();
         ArrayList<ColumnStats> childStats = leftChild.getStats();
 
         // Use a selectivity of 100% if we do not have a predicate

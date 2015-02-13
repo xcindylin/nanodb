@@ -466,29 +466,10 @@ public class SelectivityEstimator {
                 selectivity = 1.0f;
             }
         }
-        else if (!colOneStats.hasDifferentMinMaxValues()) {
-            // Column One has the same max / min value
-            // Column Two has a range, so selectivity is
-            // 1 / number of unique values in two assuming uniform distribution
-            selectivity = 1.0f / numUniqueValTwo;
-        }
-        else if (!colTwoStats.hasDifferentMinMaxValues()) {
-            // Column Two has the same max / min value
-            // Column One has a range, so selectivity is
-            // 1 / number of unique values in one assuming uniform distribution
-            selectivity = 1.0f / numUniqueValOne;
-        }
-        else if (computeDifference(maxValOne, minValTwo) > 0){
-            // If minValOne < minValTwo < maxValOne < maxValTwo
-            // Compute the ratio of overlap to total range length
-            selectivity = computeRatio(minValTwo, maxValOne,
-                    minValOne, maxValTwo);
-        }
-        else if (computeDifference(minValOne, maxValTwo) < 0){
-            // If minValTwo < minValOne < maxValTwo < maxValOne
-            // Compute the ratio of overlap to total range length
-            selectivity = computeRatio(minValOne, maxValTwo,
-                    minValTwo, maxValOne);
+        else {
+            // If not then we do 1/ max(numUnique values for 1, 2)
+            selectivity = 1.0f / Math.max(numUniqueValOne,
+                    numUniqueValTwo);
         }
 
         // If not equals, then invert

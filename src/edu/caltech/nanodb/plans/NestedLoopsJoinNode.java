@@ -222,10 +222,12 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
         // Simply sum blockIOs of both left and right
         long numBlockIOs = leftChildCost.numBlockIOs + rightChildCost.numBlockIOs;
 
+        // Multiply cost by 2 since we're considering pairs of tuples
+        cpuCost *= 2;
+        
         // Add back in cpu cost of children
         cpuCost += leftChildCost.cpuCost + rightChildCost.cpuCost;
-        cost = new PlanCost((int) numTuples, cpuCost, tupleSize, numBlockIOs);
-
+        cost = new PlanCost((int) numTuples, tupleSize, cpuCost, numBlockIOs);
     }
 
 

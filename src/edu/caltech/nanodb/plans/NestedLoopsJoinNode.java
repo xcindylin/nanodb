@@ -224,7 +224,7 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
 
         // Multiply cost by 2 since we're considering pairs of tuples
         cpuCost *= 2;
-        
+
         // Add back in cpu cost of children
         cpuCost += leftChildCost.cpuCost + rightChildCost.cpuCost;
         cost = new PlanCost((int) numTuples, tupleSize, cpuCost, numBlockIOs);

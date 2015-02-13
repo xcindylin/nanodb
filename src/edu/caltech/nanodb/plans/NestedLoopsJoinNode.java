@@ -165,28 +165,6 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
 
         // Use the parent class' helper-function to prepare the schema.
         prepareSchemaStats();
-
-//        // Get unique left child column and right child columns rows
-//        ColumnInfo leftColInfo = predicate.getColumnInfo(leftSchema);
-//        ColumnInfo rightColInfo = predicate.getColumnInfo(rightSchema);
-//        System.out.println(leftColInfo.toString());
-//        System.out.println(rightColInfo.toString());
-//        System.out.println(leftColInfo.getColumnName().toString());
-//        System.out.println(rightColInfo.getColumnName().toString());
-//        int leftColIndex = leftSchema.getColumnIndex(leftColInfo.getColumnName());
-//        int rightColIndex = rightSchema.getColumnIndex(rightColInfo.getColumnName());
-//
-//        System.out.println(leftColIndex);
-//        System.out.println(rightColIndex);
-//
-//        int uniqueLeft = leftStats.get(leftColIndex).getNumUniqueValues();
-//        int uniqueRight = rightStats.get(rightColIndex).getNumUniqueValues();
-//
-//        int maxUnique = uniqueLeft;
-//        if (uniqueRight > uniqueLeft) {
-//            maxUnique = uniqueRight;
-//        }
-//
         PlanCost leftChildCost = leftChild.getCost();
         PlanCost rightChildCost = rightChild.getCost();
 
@@ -195,14 +173,19 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
 
         float selectivity = SelectivityEstimator.estimateSelectivity(predicate, schema, stats);
         // Tuples produced for a theta join
-        float thetaTuplesP = 0;
-        thetaTuplesP = selectivity * numLeft * numRight;
+        float thetaTuplesP = selectivity * numLeft * numRight;
 
         // Compute number of tuples produced
+        // Left and right outer can be treated both as left outer because we swap
+        // children if doing a right outer
         float numTuples = 0;
         switch(joinType) {
             case ANTIJOIN:
+                // Anti is complement of selectiity since checking for not equals
+                numTuples = (1-selectivity) * numLeft * numRight;
+                break;
             case SEMIJOIN:
+                // Upper bound on tuples produced
                 numTuples = numLeft;
                 break;
             case INNER:
@@ -225,11 +208,10 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
             case RIGHT_OUTER:
             case LEFT_OUTER:
                 cpuCost = numLeft * numRight;
+                // If right is empty still have to go through all of left
                 if (numRight == 0)
                     cpuCost = numLeft;
         }
-
-
 
         float tupleSize = leftChildCost.tupleSize;
         // If not doing semi and anti then add tuple size of right
@@ -239,6 +221,9 @@ public class NestedLoopsJoinNode extends ThetaJoinNode {
 
         // Simply sum blockIOs of both left and right
         long numBlockIOs = leftChildCost.numBlockIOs + rightChildCost.numBlockIOs;
+
+        // Add back in cpu cost of children
+        cpuCost += leftChildCost.cpuCost + rightChildCost.cpuCost;
         cost = new PlanCost((int) numTuples, cpuCost, tupleSize, numBlockIOs);
 
     }

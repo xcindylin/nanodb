@@ -151,14 +151,14 @@ public class SelectivityEstimator {
 
         switch (bool.getType()) {
 
-        // Multiply the selectivities if
+        // Multiply the selectivities if it is and
         case AND_EXPR:
             for (int i = 0; i < numExpression; i++) {
                 selectivity *= estimateSelectivity(bool.getTerm(i),
                         exprSchema, stats);
             }
             break;
-
+        // Transform selectivities into expressions of and to multiply together
         case OR_EXPR:
             for (int i = 0; i < numExpression; i++) {
                 selectivity *= (1.0f - estimateSelectivity(bool.getTerm(i),
@@ -410,6 +410,11 @@ public class SelectivityEstimator {
 
         // Comparison:  column op column
 
+        if (compType != CompareOperator.Type.EQUALS ||
+                compType != CompareOperator.Type.NOT_EQUALS)
+            throw new IllegalArgumentException("Only Supports Column = Column"
+                    + " and Column != Column");
+
         float selectivity = DEFAULT_SELECTIVITY;
 
         // Pull out the critical values for making the estimates.
@@ -427,6 +432,16 @@ public class SelectivityEstimator {
 
         int numUniqueValOne = colOneStats.getNumUniqueValues();
         int numUniqueValTwo = colTwoStats.getNumUniqueValues();
+
+        int colIndex = exprSchema.getColumnIndex(columnOne.getColumnName());
+        ColumnInfo colInfo = exprSchema.getColumnInfo(colIndex);
+        SQLDataType sqlType = colInfo.getType().getBaseType();
+
+        // Check for strings If strings, then we return 1/ Max(V(ColOne),
+        // V(ColTwo)
+        if (!typeSupportsCompareEstimates(sqlType)) {
+            return 1.0f / Math.max(numUniqueValOne, numUniqueValTwo);
+        }
 
         // Detect unknown stats and return default if there are any
         if (minValOne == null || minValTwo == null || numUniqueValOne == -1 ||
@@ -473,6 +488,11 @@ public class SelectivityEstimator {
             // Compute the ratio of overlap to total range length
             selectivity = computeRatio(minValOne, maxValTwo,
                     minValTwo, maxValOne);
+        }
+
+        // If not equals, then invert
+        if (compType == CompareOperator.Type.NOT_EQUALS) {
+            selectivity = 1.0f - selectivity;
         }
 
         return selectivity;

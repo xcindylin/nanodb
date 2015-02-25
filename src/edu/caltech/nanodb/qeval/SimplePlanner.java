@@ -60,9 +60,6 @@ public class SimplePlanner implements Planner {
             throw new UnsupportedOperationException(
                 "Not yet implemented:  enclosing queries!");
         }
-
-        System.out.println(selClause.toString());
-
         // Parse through the fromClause and handle all cases
         FromClause fromClause = selClause.getFromClause();
         PlanNode planNode = handleFromClause(selClause, fromClause);
@@ -228,8 +225,6 @@ public class SimplePlanner implements Planner {
 
         Expression joinExpr = fromClause.getPreparedJoinExpr();
         PlanNode joinNode;
-
-//        System.out.println(joinExpr.toString());
 
         joinNode  = new NestedLoopsJoinNode(leftPlan, rightPlan,
                 fromClause.getJoinType(), joinExpr);

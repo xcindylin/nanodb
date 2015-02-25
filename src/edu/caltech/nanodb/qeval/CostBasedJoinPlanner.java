@@ -10,6 +10,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import edu.caltech.nanodb.commands.SelectValue;
+import edu.caltech.nanodb.plans.ProjectNode;
 import org.apache.log4j.Logger;
 
 import edu.caltech.nanodb.commands.FromClause;
@@ -470,5 +472,10 @@ public class CostBasedJoinPlanner implements Planner {
         SelectNode selectNode = new FileScanNode(tableInfo, predicate);
         selectNode.prepare();
         return selectNode;
+    }
+
+    @Override
+    public ProjectNode makeSimpleProject(List<SelectValue> selectSpec) throws IOException {
+        return null;
     }
 }

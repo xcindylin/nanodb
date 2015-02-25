@@ -5,8 +5,10 @@ import java.io.IOException;
 import java.util.List;
 
 import edu.caltech.nanodb.commands.SelectValue;
+import edu.caltech.nanodb.expressions.Null;
 import edu.caltech.nanodb.expressions.OrderByExpression;
 import edu.caltech.nanodb.plans.*;
+import org.apache.commons.lang.ObjectUtils;
 import org.apache.log4j.Logger;
 
 import edu.caltech.nanodb.commands.FromClause;
@@ -58,6 +60,8 @@ public class SimplePlanner implements Planner {
             throw new UnsupportedOperationException(
                 "Not yet implemented:  enclosing queries!");
         }
+
+        System.out.println(selClause.toString());
 
         // Parse through the fromClause and handle all cases
         FromClause fromClause = selClause.getFromClause();
@@ -124,10 +128,12 @@ public class SimplePlanner implements Planner {
         // If there are any aggregates in ON clause, throw error
         if (selClause.getFromClause() != null) {
             if (selClause.getFromClause().isJoinExpr()) {
-                selClause.getFromClause().getOnExpression().traverse(processor);
-                if (processor.getAggregates().size() > prevSize)
-                    throw new IllegalArgumentException("Cannot have" +
-                            " aggregates inside ON clause");
+                if (selClause.getFromClause().getOnExpression() != null) {
+                    selClause.getFromClause().getOnExpression().traverse(processor);
+                    if (processor.getAggregates().size() > prevSize)
+                        throw new IllegalArgumentException("Cannot have" +
+                                " aggregates inside ON clause");
+                }
             }
         }
 
@@ -222,6 +228,8 @@ public class SimplePlanner implements Planner {
 
         Expression joinExpr = fromClause.getPreparedJoinExpr();
         PlanNode joinNode;
+
+//        System.out.println(joinExpr.toString());
 
         joinNode  = new NestedLoopsJoinNode(leftPlan, rightPlan,
                 fromClause.getJoinType(), joinExpr);

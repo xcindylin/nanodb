@@ -10,17 +10,16 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import com.sun.javaws.exceptions.InvalidArgumentException;
 import edu.caltech.nanodb.commands.SelectValue;
-import edu.caltech.nanodb.plans.ProjectNode;
+import edu.caltech.nanodb.expressions.PredicateUtils;
+import edu.caltech.nanodb.plans.*;
 import org.apache.log4j.Logger;
 
 import edu.caltech.nanodb.commands.FromClause;
 import edu.caltech.nanodb.commands.SelectClause;
 import edu.caltech.nanodb.expressions.BooleanOperator;
 import edu.caltech.nanodb.expressions.Expression;
-import edu.caltech.nanodb.plans.FileScanNode;
-import edu.caltech.nanodb.plans.PlanNode;
-import edu.caltech.nanodb.plans.SelectNode;
 import edu.caltech.nanodb.relations.TableInfo;
 import edu.caltech.nanodb.storage.StorageManager;
 
@@ -163,6 +162,8 @@ public class CostBasedJoinPlanner implements Planner {
         // 5)  Handle other situations such as ORDER BY, or LIMIT/OFFSET if
         //     you have implemented this plan-node.
 
+
+
         return null;
     }
 
@@ -244,7 +245,25 @@ public class CostBasedJoinPlanner implements Planner {
      */
     private void collectDetails(FromClause fromClause,
         HashSet<Expression> conjuncts, ArrayList<FromClause> leafFromClauses) {
-        // TODO:  IMPLEMENT
+        // If there is no fromClause, then we add no conjuncts or leaves
+        if (fromClause == null) {
+            return;
+        }
+        else if (fromClause.isBaseTable() || fromClause.isOuterJoin() ||
+                fromClause.isDerivedTable()) {
+            leafFromClauses.add(fromClause);
+        }
+        else if (fromClause.isJoinExpr()) {
+            collectDetails(fromClause.getLeftChild(), conjuncts,
+                    leafFromClauses);
+            collectDetails(fromClause.getRightChild(), conjuncts,
+                    leafFromClauses);
+            Expression joinExpr = fromClause.getPreparedJoinExpr();
+            PredicateUtils.collectConjuncts(joinExpr, conjuncts);
+        }
+        else {
+            throw new IllegalArgumentException("Doesn't recognize from clause");
+        }
     }
 
 
@@ -328,7 +347,75 @@ public class CostBasedJoinPlanner implements Planner {
         //        joins first, then focus on outer joins once you have the
         //        typical cases supported.
 
-        return null;
+        PlanNode planNode;
+        if (fromClause.isBaseTable()) {
+            String tableName = fromClause.getResultName();
+            // Open the table.
+            TableInfo tableInfo =
+                    storageManager.getTableManager().openTable(tableName);
+            planNode = new FileScanNode(tableInfo, null);
+            planNode.prepare();
+
+            PredicateUtils.findExprsUsingSchemas(conjuncts, true, leafConjuncts,
+                    planNode.getSchema());
+
+            Expression allPred = PredicateUtils.makePredicate(leafConjuncts);
+            planNode = PlanUtils.addPredicateToPlan(planNode, allPred);
+        }
+        else if (fromClause.isDerivedTable()) {
+            planNode = makePlan(fromClause.getSelectClause(), null);
+        }
+        else {
+            PlanNode leftChild;
+            PlanNode rightChild;
+            if (fromClause.hasOuterJoinOnLeft() &&
+                    fromClause.hasOuterJoinOnRight()) {
+                leftChild =
+                        makeJoinPlan(fromClause.getLeftChild(), null).joinPlan;
+                rightChild =
+                        makeJoinPlan(fromClause.getRightChild(), null).joinPlan;
+            }
+            else if (fromClause.hasOuterJoinOnLeft()) {
+                String tableName = fromClause.getLeftChild().getResultName();
+                // Open the table.
+                TableInfo tableInfo =
+                        storageManager.getTableManager().openTable(tableName);
+                planNode = new FileScanNode(tableInfo, null);
+                planNode.prepare();
+
+                PredicateUtils.findExprsUsingSchemas(conjuncts, true,
+                        leafConjuncts, planNode.getSchema());
+
+                leftChild =
+                        makeJoinPlan(fromClause.getLeftChild(),
+                                leafConjuncts).joinPlan;
+                rightChild =
+                        makeJoinPlan(fromClause.getRightChild(), null).joinPlan;
+            }
+            else {
+                String tableName = fromClause.getRightChild().getResultName();
+                // Open the table.
+                TableInfo tableInfo =
+                        storageManager.getTableManager().openTable(tableName);
+                planNode = new FileScanNode(tableInfo, null);
+                planNode.prepare();
+
+                PredicateUtils.findExprsUsingSchemas(conjuncts, true,
+                        leafConjuncts, planNode.getSchema());
+
+                leftChild =
+                        makeJoinPlan(fromClause.getLeftChild(), null).joinPlan;
+                rightChild =
+                        makeJoinPlan(fromClause.getRightChild(),
+                                leafConjuncts).joinPlan;
+
+            }
+            planNode = new NestedLoopsJoinNode(leftChild, rightChild,
+                    fromClause.getJoinType(), null);
+        }
+
+        planNode.prepare();
+        return planNode;
     }
 
 

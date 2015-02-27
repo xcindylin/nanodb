@@ -24,9 +24,7 @@ public class PlannerFactory {
      * This class is the default planner used in NanoDB, unless
      * overridden in the configuration.
      */
-    public static final String DEFAULT_PLANNER =
-        "edu.caltech.nanodb.qeval.SimplePlanner";
-
+    public static final String DEFAULT_PLANNER = "edu.caltech.nanodb.qeval.CostBasedJoinPlanner";
 
     public static class PlannerFactoryPropertyHandler implements PropertyHandler {
 

@@ -74,6 +74,9 @@ public class HeapTupleFileManager implements TupleFileManager {
         HeaderPage.setNextFreeDataPageNo(headerPage, -1);
         HeaderPage.setTailFreeDataPageNo(headerPage, 0);
 
+        // Log the changes to header page in the write-ahead log
+        storageManager.logDBPageWrite(headerPage);
+
         headerPage.unpin();
         return new HeapTupleFile(storageManager, this, dbFile, schema, stats);
     }
@@ -144,6 +147,9 @@ public class HeapTupleFileManager implements TupleFileManager {
         statsWriter.writeTableStats(schema, stats, hpWriter);
         int statsSize = hpWriter.getPosition() - schemaEndPos;
         HeaderPage.setStatsSize(headerPage, statsSize);
+
+        // Log the changes to header page in the write-ahead log
+        storageManager.logDBPageWrite(headerPage);
     }
 
 

@@ -329,6 +329,7 @@ public class HeapTupleFile implements TupleFile {
 
             HeaderPage.setTailFreeDataPageNo(headerPage, freePageNo);
 
+            storageManager.logDBPageWrite(tailPage);
             tailPage.unpin();
         }
 
@@ -368,10 +369,16 @@ public class HeapTupleFile implements TupleFile {
                 }
             }
 
+            // Log changes to the WAL
+            storageManager.logDBPageWrite(prevDBPage);
             prevDBPage.unpin();
         }
 
         DataPage.sanityCheck(freeDBPage);
+
+        // Log all the changes to the write ahead log
+        storageManager.logDBPageWrite(freeDBPage);
+        storageManager.logDBPageWrite(headerPage);
 
         // Unpin page after adding tuple
         freeDBPage.unpin();
@@ -410,6 +417,7 @@ public class HeapTupleFile implements TupleFile {
 
         DBPage dbPage = ptup.getDBPage();
         DataPage.sanityCheck(dbPage);
+        storageManager.logDBPageWrite(dbPage);
     }
 
 
@@ -452,9 +460,18 @@ public class HeapTupleFile implements TupleFile {
 
             // Have to set the new page's next value as the end
             DataPage.setNextFreeDataPageNo(dbPage, -1);
+
+            // Performed an update to the next pointers, so we need to log
+            // the changes
+            storageManager.logDBPageWrite(headerPage);
+            storageManager.logDBPageWrite(tailPage);
+
             headerPage.unpin();
             tailPage.unpin();
         }
+
+        // Deleted tuple from dbPage, so we need to log to the WAL
+        storageManager.logDBPageWrite(dbPage);
 
         DataPage.sanityCheck(dbPage);
     }

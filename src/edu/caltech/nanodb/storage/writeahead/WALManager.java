@@ -1071,9 +1071,35 @@ public class WALManager {
             //
             // TODO:  SET lsn TO PREVIOUS LSN TO WALK BACKWARD THROUGH WAL.
 
+            if (type.getID() == WALRecordType.START_TXN.getID()) {
+                break;
+            }
+            else if (type.getID() == WALRecordType.UPDATE_PAGE.getID()){
+                // Read the PrevLSN's two byte log file number
+                int prevLogNo = walReader.readUnsignedShort();
+                int prevOffset = walReader.readInt();
+
+                lsn = new LogSequenceNumber(prevLogNo, prevOffset);
+
+                DBFile dbFile = storageManager.openDBFile(walReader.readVarString255());
+                int pageNo = walReader.readUnsignedShort();
+                int numSegments = walReader.readUnsignedShort();
+
+
+                DBPage dbPage = storageManager.loadDBPage(dbFile, pageNo);
+                byte[] changes = applyUndoAndGenRedoOnlyData(walReader, dbPage,
+                        numSegments);
+                writeRedoOnlyUpdatePageRecord(dbPage, numSegments, changes);
+                writeTxnRecord(WALRecordType.ABORT_TXN);
+            }
+            else {
+                throw new WALFileException("Corrupt Write-Ahead Log: " +
+                        "Tried to rollback when not in a transaction");
+            }
+
             // TODO:  This break is just here so the code will compile; when
             //        you provide your own implementation, get rid of it!
-            break;
+//            break;
         }
 
         // All done rolling back the transaction!  Record that it was aborted

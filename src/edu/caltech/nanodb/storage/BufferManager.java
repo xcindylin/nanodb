@@ -812,7 +812,7 @@ public class BufferManager {
      *        in case dirty pages had previously been flushed to disk without
      *        syncing.
      *
-     * @throws IOException if an IO error occurs while updating the write-ahead
+     * @throws IOException if an IO error occurs while updating the write-for
      *         log, or while writing the file's contents.
      */
     public void writeDBFile(DBFile dbFile, boolean sync) throws IOException {

@@ -439,18 +439,24 @@ public class TransactionManager implements BufferManagerObserver {
 
         LogSequenceNumber currMax = new LogSequenceNumber(0, 0);
         for (DBPage page: pages) {
+
             DBFileType pageType = page.getDBFile().getType();
-            if (pageType.getID() != DBFileType.WRITE_AHEAD_LOG_FILE.getID() &&
-                    pageType.getID() != DBFileType.TXNSTATE_FILE.getID()) {
+
+            if (pageType != DBFileType.WRITE_AHEAD_LOG_FILE &&
+                    pageType != DBFileType.TXNSTATE_FILE) {
                 LogSequenceNumber pageLSN = page.getPageLSN();
+
+                System.out.println(page.getDBFile().getType().toString());
+
                 if (pageLSN == null) {
-                    if (page.getDBFile().getType() == null) {
-                        continue;
-                    }
-                    else {
-                        throw new IOException("Page to be written does not " +
-                        " have a LSN");
-                    }
+                    continue;
+//                    if (page.getDBFile().getType() == null) {
+//                        continue;
+//                    }
+//                    else {
+//                        throw new IOException("Page to be written does not" +
+//                        " have a LSN");
+//                    }
                 }
 
                 if (pageLSN.compareTo(currMax) > 0) {

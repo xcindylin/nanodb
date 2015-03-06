@@ -413,58 +413,40 @@ public class TransactionManager implements BufferManagerObserver {
      */
     @Override
     public void beforeWriteDirtyPages(List<DBPage> pages) throws IOException {
-        // TODO:  IMPLEMENT
-        //
-        // This implementation must enforce the write-ahead logging rule (aka
-        // the WAL rule) by ensuring that the write-ahead log reflects all
-        // changes to all of the specified pages, on disk, before any of these
-        // pages may be written to disk.
-        //
-        // Recall that DBPages have a pageLSN field that is set to the LSN
-        // of the last WAL record describing a change to the page.  This value
-        // is not always set; it will be null if the page is part of a data
-        // file whose type is not logged.  (It may also be null if there is a
-        // bug in the write-ahead logging code.  It would be wise to report a
-        // warning, or throw an exception, if a page doesn't have a LSN when
-        // it ought to.)
-        //
-        // Some file types are not recorded to the write-ahead log; these
-        // pages should be ignored when determining how to update the WAL.
-        // You can find a page's file-type by doing something like this:
-        // dbPage.getDBFile().getType().  If it is WRITE_AHEAD_LOG_FILE or
-        // TXNSTATE_FILE then you should ignore the page.
-        //
-        // Finally, you can use the forceWAL(LogSequenceNumber) function to
-        // force the WAL to be written out to the specified LSN.
-
+        // Initalize the minimum LSN
         LogSequenceNumber currMax = new LogSequenceNumber(0, 0);
-        for (DBPage page: pages) {
 
+        // We want to find the max LSN of all the pages
+        for (DBPage page: pages) {
             DBFileType pageType = page.getDBFile().getType();
 
+            // We ignore the page if it is a WRITE_AHEAD_LOG FILE or a
+            // TXNSTATE_FILE.
             if (pageType != DBFileType.WRITE_AHEAD_LOG_FILE &&
                     pageType != DBFileType.TXNSTATE_FILE) {
                 LogSequenceNumber pageLSN = page.getPageLSN();
 
-                System.out.println(page.getDBFile().getType().toString());
-
+                // If it has no LSN we skip.
                 if (pageLSN == null) {
+                    // If the file has a type, there might be a bug in the
+                    // write ahead logging code
+                    if (page.getDBFile().getType() != null) {
+                        logger.warn(String.format("%s Type Page to be written" +
+                                "does not have a LSN",
+                                page.getDBFile().getType().toString()));
+                    }
                     continue;
-//                    if (page.getDBFile().getType() == null) {
-//                        continue;
-//                    }
-//                    else {
-//                        throw new IOException("Page to be written does not" +
-//                        " have a LSN");
-//                    }
                 }
 
+                // If there is an LSN, we replace the current max LSN if it is
+                // bigger
                 if (pageLSN.compareTo(currMax) > 0) {
                     currMax = pageLSN;
                 }
             }
         }
 
+        // If we found a max, Write up to the maximum lsn
         if (currMax.getLogFileNo() != 0 || currMax.getFileOffset() != 0) {
             forceWAL(currMax);
         }
@@ -476,6 +458,15 @@ public class TransactionManager implements BufferManagerObserver {
      * This method forces the write-ahead log out to at least the specified
      * log sequence number, syncing the log to ensure that all essential
      * records have reached the disk itself.
+     * 
+     * This method is atomic and durable. The reason the method is atomic
+     * is that the txnState file is only being updated after all the writes
+     * to disk are performed. Thus, even if the method exits in the middle,
+     * at a later time if it is called it will write from the txn file's
+     * lsn to the inputted one. The method is durable if the all committed
+     * transactions are saved to disk. The reason it is durable is that the
+     * dirty pages are being synced to disk up to the specified lsn, so when
+     * we try to access the data again, the data is saved onto disk.
      *
      * @param lsn All WAL data up to this value must be forced to disk and
      *        sync'd.  This value may be one past the end of the current WAL
@@ -486,35 +477,35 @@ public class TransactionManager implements BufferManagerObserver {
      *         going to be broken.
      */
     public void forceWAL(LogSequenceNumber lsn) throws IOException {
-        // TODO:  IMPLEMENT
-        //
-        // Note that the "next LSN" value must be determined from both the
-        // current LSN *and* its record size; otherwise we lose the last log
-        // record in the WAL file.  You can use this static method:
-        //
-        // int lastPosition = lsn.getFileOffset() + lsn.getRecordSize();
-        // WALManager.computeNextLSN(lsn.getLogFileNo(), lastPosition);
-
+        // Load information from the txnState.dat file
         loadTxnStateFile();
+
+        // Get the buffer manager
         BufferManager bufferManager = storageManager.getBufferManager();
 
+        // No-OP if we have already written past the inputted lsn
         if (txnStateNextLSN.compareTo(lsn) > 0) {
+            logger.debug("The next LSN has synced further than the one " +
+                    "called. No-OP");
             return;
         }
 
+        logger.debug(String.format("Force WAL to LSN %s", lsn));
+
+        // Write up to the file number of the inputted LSN
         int currLogFileNo = txnStateNextLSN.getLogFileNo();
         while(currLogFileNo < lsn.getLogFileNo()) {
-            DBFile walFile = bufferManager.getFile(WALManager.getWALFileName(currLogFileNo));
+            DBFile walFile = bufferManager.getFile(
+                    WALManager.getWALFileName(currLogFileNo));
             if (walFile != null) {
                 bufferManager.writeDBFile(walFile, true);
             }
             currLogFileNo++;
         }
 
-        logger.debug(String.format("Force WAL to LSN %s", lsn));
-
         // Write only the pages up to the page number of the lsn in the last file
-        DBFile walFile = bufferManager.getFile(WALManager.getWALFileName(lsn.getLogFileNo()));
+        DBFile walFile = bufferManager.getFile(
+                WALManager.getWALFileName(lsn.getLogFileNo()));
         if (walFile != null) {
             int lastPosition = lsn.getFileOffset() + lsn.getRecordSize();
             int endPageNum = lastPosition / walFile.getPageSize();

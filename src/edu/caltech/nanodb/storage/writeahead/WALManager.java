@@ -1110,13 +1110,13 @@ public class WALManager {
     public void rollbackTransaction() throws IOException {
         // Get the details for the transaction to rollback.
         TransactionState txnState = SessionState.get().getTxnState();
-
         int transactionID = txnState.getTransactionID();
         if (transactionID == TransactionState.NO_TRANSACTION) {
             logger.info("No transaction in progress - rollback is a no-op.");
             return;
         }
 
+        // Get the LastLSN recorded
         LogSequenceNumber lsn = txnState.getLastLSN();
 
         logger.info("Rolling back transaction " + transactionID +
@@ -1124,7 +1124,6 @@ public class WALManager {
 
         // Scan backward through the log records for this transaction to roll
         // it back.
-        
         while (true) {
             DBFileReader walReader = getWALFileReader(lsn);
 
@@ -1140,26 +1139,41 @@ public class WALManager {
                 "Undoing WAL record at %s.  Type = %s, TxnID = %d",
                 lsn, type, transactionID));
 
-            if (type.getID() == WALRecordType.START_TXN.getID()) {
+            // We go back until we find a START_TXN WAL record
+            // which means that we have rolled back through all the updates
+            // for the current transaction
+            if (type == WALRecordType.START_TXN) {
                 break;
             }
-            else if (type.getID() == WALRecordType.UPDATE_PAGE.getID()){
+            // If the type is an update_page, then we apply an undo and write
+            // the redo only info onto the WAL
+            else if (type == WALRecordType.UPDATE_PAGE){
                 // Read the PrevLSN's two byte log file number
                 int prevLogNo = walReader.readUnsignedShort();
+
+                // Write the prev offset
                 int prevOffset = walReader.readInt();
 
+                // Get previous LSN
                 lsn = new LogSequenceNumber(prevLogNo, prevOffset);
 
-                DBFile dbFile = storageManager.openDBFile(walReader.readVarString255());
+                // Get dbfile to apply undo to
+                String filename = walReader.readVarString255();
+                DBFile dbFile = storageManager.openDBFile(filename);
+
+                // Get pageNo and changes
                 int pageNo = walReader.readUnsignedShort();
                 int numSegments = walReader.readUnsignedShort();
 
-
+                // Apply undo and generate redo only and write the redo only
+                // WAL record to the WAL
                 DBPage dbPage = storageManager.loadDBPage(dbFile, pageNo);
                 byte[] changes = applyUndoAndGenRedoOnlyData(walReader, dbPage,
                         numSegments);
                 writeRedoOnlyUpdatePageRecord(dbPage, numSegments, changes);
             }
+            // If the type is ABORT/ COMMIT / OR UPDATE REDO, doesn't make
+            // sense because we are in the middle of a transaction
             else {
                 throw new WALFileException("Corrupt Write-Ahead Log: " +
                         "Tried to rollback when not in a transaction");

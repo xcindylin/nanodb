@@ -25,6 +25,7 @@ import edu.caltech.nanodb.storage.TupleFile;
 import edu.caltech.nanodb.storage.InvalidFilePointerException;
 import edu.caltech.nanodb.storage.PageTuple;
 import edu.caltech.nanodb.storage.StorageManager;
+import edu.caltech.nanodb.storage.TupleFileManager;
 
 
 /**
@@ -67,6 +68,9 @@ public class HeapTupleFile implements TupleFile {
         if (storageManager == null)
             throw new IllegalArgumentException("storageManager cannot be null");
 
+        if (heapFileManager == null)
+            throw new IllegalArgumentException("heapFileManager cannot be null");
+
         if (dbFile == null)
             throw new IllegalArgumentException("dbFile cannot be null");
 
@@ -84,6 +88,13 @@ public class HeapTupleFile implements TupleFile {
     }
 
 
+    @Override
+    public TupleFileManager getManager() {
+        return heapFileManager;
+    }
+
+
+    @Override
     public TableSchema getSchema() {
         return schema;
     }
@@ -196,6 +207,15 @@ public class HeapTupleFile implements TupleFile {
      **/
     @Override
     public Tuple getNextTuple(Tuple tup) throws IOException {
+
+        /* Procedure:
+         *   1)  Get slot index of current tuple.
+         *   2)  If there are more slots in the current page, find the next
+         *       non-empty slot.
+         *   3)  If we get to the end of this page, go to the next page
+         *       and try again.
+         *   4)  If we get to the end of the file, we return null.
+         */
 
         if (!(tup instanceof HeapFilePageTuple)) {
             throw new IllegalArgumentException(
@@ -557,8 +577,10 @@ public class HeapTupleFile implements TupleFile {
     @Override
     public List<String> verify() throws IOException {
         // TODO!
-        throw new UnsupportedOperationException("Not yet implemented!");
+        // Right now we will just report that everything is fine.
+        return new ArrayList<String>();
     }
+
 
     @Override
     public void optimize() throws IOException {

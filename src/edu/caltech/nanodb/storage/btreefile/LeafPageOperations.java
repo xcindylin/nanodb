@@ -683,6 +683,28 @@ public class LeafPageOperations {
          * The parent page must also be updated.  If the leaf node doesn't have
          * a parent, the tree's depth will increase by one level.
          */
+
+        // Update pointers on the two leaves
+        newLeaf.setNextPageNo(leaf.getNextPageNo());
+        leaf.setNextPageNo(newLeaf.getPageNo());
+
+        // Determine number of tuples to move, move the tuples, and adds tuple
+        // to appropriate page
+        int numTuples = leaf.getNumTuples();
+        leaf.moveTuplesRight(newLeaf, numTuples / 2);
+        BTreeFilePageTuple result = addTupleToLeafPair(leaf, newLeaf, tuple);
+
+        if (pathSize == 1) {
+
+        }
+        else {
+            int parentPageNum = pagePath.get(pathSize - 2);
+
+            DBPage parentDBPage = storageManager.loadDBPage(dbFile, parentPageNum);
+
+
+        }
+
         logger.error("NOT YET IMPLEMENTED:  splitLeafAndAddKey()");
         return null;
     }

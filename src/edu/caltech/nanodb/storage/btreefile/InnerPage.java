@@ -732,13 +732,36 @@ public class InnerPage implements DataPage {
          * Your implementation also needs to properly handle the incoming
          * parent-key, and produce a new parent-key as well.
          */
-        logger.error("NOT YET IMPLEMENTED:  movePointersLeft()");
+//        logger.error("NOT YET IMPLEMENTED:  movePointersLeft()");
+
+        DBPage leftPage = leftSibling.getDBPage();
+        if (parentKeyLen != 0)
+            PageTuple.storeTuple(leftPage, leftSibling.getUsedSpace(), schema,
+                    parentKey);
+
+        int rightEnd = pointerOffsets[count - 1] + 4;
+        int len = rightEnd - OFFSET_FIRST_POINTER;
+        byte[] rightEntries = new byte[len];
+        dbPage.read(OFFSET_FIRST_POINTER, rightEntries);
+        leftPage.write(leftSibling.getUsedSpace() + parentKeyLen, rightEntries);
+
+        TupleLiteral newParentKey = null;
+        if (count > 0) {
+            newParentKey = new TupleLiteral(keys[count - 1]);
+        }
+
+        dbPage.moveDataRange(pointerOffsets[count], OFFSET_FIRST_POINTER,
+                endOffset - pointerOffsets[count]);
+
+        dbPage.writeShort(OFFSET_NUM_POINTERS, numPointers - count);
+        leftPage.writeShort(OFFSET_NUM_POINTERS,
+                leftSibling.getNumPointers() + count);
 
         // Update the cached info for both non-leaf pages.
         loadPageContents();
         leftSibling.loadPageContents();
 
-        return null;
+        return newParentKey;
     }
 
 
@@ -947,7 +970,38 @@ public class InnerPage implements DataPage {
          * Your implementation also needs to properly handle the incoming
          * parent-key, and produce a new parent-key as well.
          */
-        logger.error("NOT YET IMPLEMENTED:  movePointersRight()");
+//        logger.error("NOT YET IMPLEMENTED:  movePointersRight()");
+
+        // Calculate the amount of bytes to shift the right sibling to make
+        // room for the new pointers / tuples
+        int rightShiftSize = len + parentKeyLen;
+
+        // Get the starting point of the right sibling and its page
+        int rightStart = rightSibling.OFFSET_FIRST_POINTER;
+        DBPage rightPage = rightSibling.getDBPage();
+
+        // Move all the entries data by rightShiftSize to make room for the
+        // entries we are moving by the method
+        rightPage.moveDataRange(rightStart, rightStart + rightShiftSize,
+                rightSibling.getSpaceUsedByEntries());
+
+        byte[] leftEntries = new byte[len];
+        dbPage.read(startOffset, leftEntries);
+        rightPage.write(rightStart, leftEntries);
+
+        if (parentKeyLen != 0)
+            PageTuple.storeTuple(rightPage, rightStart + len,
+                    schema, parentKey);
+
+        TupleLiteral newParentKey = null;
+        if (startPointerIndex > 0) {
+            newParentKey = new TupleLiteral(keys[startPointerIndex - 1]);
+        }
+
+
+        dbPage.writeShort(OFFSET_NUM_POINTERS, numPointers - count);
+        rightPage.writeShort(OFFSET_NUM_POINTERS,
+                rightSibling.getNumPointers() + count);
 
         // Update the cached info for both non-leaf pages.
         loadPageContents();
@@ -962,7 +1016,7 @@ public class InnerPage implements DataPage {
                 rightSibling.toFormattedString());
         }
 
-        return null;
+        return newParentKey;
     }
 
 

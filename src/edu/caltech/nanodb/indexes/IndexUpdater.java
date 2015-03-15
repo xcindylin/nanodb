@@ -136,6 +136,33 @@ public class IndexUpdater implements RowEventListener {
                 //
                 // Finally, add a new tuple to the index, including the
                 // tuple-pointer to the tuple in the table.
+
+                TupleFile tupleFile = indexInfo.getTupleFile();
+                boolean isUnique = false;
+                TableConstraintType constraintType = indexDef.getConstraintType();
+                if (constraintType != null)
+                    isUnique = constraintType.isUnique();
+
+//                System.out.println(constraintType.toString());
+
+                if (isUnique) {
+//                    System.out.println("unique");
+                    TupleLiteral searchKey =
+                            IndexUtils.makeSearchKeyValue(indexDef, ptup, false);
+                    PageTuple foundTuple = IndexUtils.findTupleInIndex(searchKey,
+                            tupleFile);
+                    if (foundTuple != null) {
+                        throw new EventDispatchException("Couldn't update " +
+                        "index " + indexDef.getIndexName() + " for table " +
+                        tblFileInfo.getTableName() + " because of unique " +
+                        "constraints");
+                    }
+                }
+
+                TupleLiteral indexTuple =IndexUtils.makeSearchKeyValue(indexDef,
+                        ptup, true);
+
+                tupleFile.addTuple(indexTuple);
             }
             catch (IOException e) {
                 throw new EventDispatchException("Couldn't update index " +
@@ -174,6 +201,20 @@ public class IndexUpdater implements RowEventListener {
                 //
                 // If the tuple doesn't appear in this index, throw an
                 // IllegalStateException to indicate that the index is bad.
+
+                TupleFile tupleFile = indexInfo.getTupleFile();
+                TupleLiteral indexTuple =
+                        IndexUtils.makeSearchKeyValue(indexDef, ptup, true);
+                PageTuple foundTuple = IndexUtils.findTupleInIndex(indexTuple,
+                        tupleFile);
+
+                if (foundTuple != null) {
+                    tupleFile.deleteTuple(foundTuple);
+                }
+                else {
+                    throw new EventDispatchException("Cannot find index in " +
+                    indexDef.getIndexName());
+                }
             }
             catch (IOException e) {
                 throw new EventDispatchException("Couldn't update index " +

@@ -342,8 +342,9 @@ public class LeafPageOperations {
         // Figure out where the new tuple-value goes in the leaf page.
 
         int newTupleSize = newTuple.getStorageSize();
-        System.out.print(leaf.getFreeSpace());
+//        System.out.println(leaf.getFreeSpace());
         if (leaf.getFreeSpace() <= newTupleSize) {
+//        if (leaf.getFreeSpace() <= 8176) {
             // Try to relocate tuples from this leaf to either sibling,
             // or if that can't happen, split the leaf page into two.
             result = relocateTuplesAndAddTuple(leaf, pagePath, newTuple);
@@ -671,6 +672,10 @@ public class LeafPageOperations {
             logger.debug("    Old next-page:  " + leaf.getNextPageNo());
         }
 
+        System.out.println("Splitting leaf-page " + leaf.getPageNo() +
+                " into two leaves.");
+        System.out.println("    Old next-page:  " + leaf.getNextPageNo());
+
         // Get a new blank page in the index, with the same parent as the
         // leaf-page we were handed.
 
@@ -687,7 +692,7 @@ public class LeafPageOperations {
          */
 
         // Update pointers on the two leaves
-        // newLeaf.setNextPageNo(leaf.getNextPageNo());
+        newLeaf.setNextPageNo(leaf.getNextPageNo());
         leaf.setNextPageNo(newLeaf.getPageNo());
 
         // Determine number of tuples to move, move the tuples, and adds tuple

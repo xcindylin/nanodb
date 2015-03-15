@@ -341,7 +341,8 @@ public class LeafPageOperations {
         // Figure out where the new tuple-value goes in the leaf page.
 
         int newTupleSize = newTuple.getStorageSize();
-        if (leaf.getFreeSpace() < newTupleSize) {
+        System.out.print(leaf.getFreeSpace());
+        if (leaf.getFreeSpace() <= 8172) {
             // Try to relocate tuples from this leaf to either sibling,
             // or if that can't happen, split the leaf page into two.
             result = relocateTuplesAndAddTuple(leaf, pagePath, newTuple);
@@ -685,7 +686,7 @@ public class LeafPageOperations {
          */
 
         // Update pointers on the two leaves
-        newLeaf.setNextPageNo(leaf.getNextPageNo());
+        // newLeaf.setNextPageNo(leaf.getNextPageNo());
         leaf.setNextPageNo(newLeaf.getPageNo());
 
         // Determine number of tuples to move, move the tuples, and adds tuple
@@ -694,19 +695,32 @@ public class LeafPageOperations {
         leaf.moveTuplesRight(newLeaf, numTuples / 2);
         BTreeFilePageTuple result = addTupleToLeafPair(leaf, newLeaf, tuple);
 
+        int leftLeafStart, rightLeafStart;
         if (pathSize == 1) {
+            // Create parent page that is the new root since the leaf that
+            // was split was the root leaf
+            leftLeafStart = leaf.getPageNo();
+            rightLeafStart = newLeaf.getPageNo();
+            DBPage rootPage = fileOps.getNewDataPage();
+            InnerPage.init(rootPage, leaf.getSchema(), leftLeafStart,
+                    result, rightLeafStart);
 
+            // Update root node
+            HeaderPage.setRootPageNo(rootPage, rootPage.getPageNo());
         }
         else {
+            // Find parent page of the leaf that was just split and update
+            // the parent
             int parentPageNum = pagePath.get(pathSize - 2);
-
-            DBPage parentDBPage = storageManager.loadDBPage(dbFile, parentPageNum);
-
-
+            InnerPage parentInnerPage = innerPageOps.loadPage(parentPageNum);
+            leftLeafStart = leaf.getPageNo();
+            rightLeafStart = newLeaf.getPageNo();
+            innerPageOps.addTuple(parentInnerPage,
+                    pagePath.subList(0, pathSize - 1),
+                    leftLeafStart, result, rightLeafStart);
         }
 
-        logger.error("NOT YET IMPLEMENTED:  splitLeafAndAddKey()");
-        return null;
+        return result;
     }
 
 

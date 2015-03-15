@@ -458,17 +458,12 @@ public class BTreeTupleFile implements SequentialTupleFile {
          */
 
         while (pageType != BTREE_LEAF_PAGE) {
-            if (pagePath != null) {
-                pagePath.add(dbPage.getPageNo());
-            }
-
             // Get info about the inner page and use it to determine the
-            // pointer to the next page (we set the initial value to the
-            // last pointer of the current page and will update if
-            // necessary)
+            // pointer to the next page (we set the initial value to -1
+            // and will update if necessary)
             InnerPage innerPage = new InnerPage(dbPage, schema);
             int numKeys = innerPage.getNumKeys();
-            int nextPage = innerPage.getPointer(numKeys);
+            int nextPage = -1;
 
             if (numKeys < 1) {
                 throw new IOException("Page contains no keys");
@@ -480,11 +475,11 @@ public class BTreeTupleFile implements SequentialTupleFile {
                         innerPage.getKey(i));
 
                 if (compareVal == 0) {
-                    nextPage = i + 1;
+                    nextPage = innerPage.getPointer(i + 1);
                     break;
                 }
                 else if (compareVal < 0 ) {
-                    nextPage = i;
+                    nextPage = innerPage.getPointer(i);
                     break;
                 }
             }
@@ -492,10 +487,10 @@ public class BTreeTupleFile implements SequentialTupleFile {
             // Load the next page
             dbPage = storageManager.loadDBPage(dbFile, nextPage);
             pageType = dbPage.readByte(0);
-        }
 
-        if (pagePath != null) {
-            pagePath.add(dbPage.getPageNo());
+            if (pagePath != null) {
+                pagePath.add(dbPage.getPageNo());
+            }
         }
 
         // Sanity check

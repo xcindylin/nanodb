@@ -463,7 +463,7 @@ public class BTreeTupleFile implements SequentialTupleFile {
             // and will update if necessary)
             InnerPage innerPage = new InnerPage(dbPage, schema);
             int numKeys = innerPage.getNumKeys();
-            int nextPage = -1;
+            int nextPage = innerPage.getPointer(numKeys);
 
             if (numKeys < 1) {
                 throw new IOException("Page contains no keys");

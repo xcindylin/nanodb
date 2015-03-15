@@ -12,6 +12,7 @@ import edu.caltech.nanodb.relations.Tuple;
 import edu.caltech.nanodb.storage.DBFile;
 import edu.caltech.nanodb.storage.DBPage;
 import edu.caltech.nanodb.storage.StorageManager;
+//import sun.jvm.hotspot.memory.HeapBlock;
 
 
 /**
@@ -342,7 +343,7 @@ public class LeafPageOperations {
 
         int newTupleSize = newTuple.getStorageSize();
         System.out.print(leaf.getFreeSpace());
-        if (leaf.getFreeSpace() <= 8172) {
+        if (leaf.getFreeSpace() <= newTupleSize) {
             // Try to relocate tuples from this leaf to either sibling,
             // or if that can't happen, split the leaf page into two.
             result = relocateTuplesAndAddTuple(leaf, pagePath, newTuple);
@@ -706,7 +707,9 @@ public class LeafPageOperations {
                     result, rightLeafStart);
 
             // Update root node
-            HeaderPage.setRootPageNo(rootPage, rootPage.getPageNo());
+            DBPage dbpHeader =
+                    storageManager.loadDBPage(tupleFile.getDBFile(), 0);
+            HeaderPage.setRootPageNo(dbpHeader, rootPage.getPageNo());
         }
         else {
             // Find parent page of the leaf that was just split and update

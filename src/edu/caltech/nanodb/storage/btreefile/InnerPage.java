@@ -704,6 +704,8 @@ public class InnerPage implements DataPage {
     public TupleLiteral movePointersLeft(InnerPage leftSibling, int count,
                                          Tuple parentKey) {
 
+        System.out.println("************************************");
+
         if (count < 0 || count > numPointers) {
             throw new IllegalArgumentException("count must be in range (0, " +
                 numPointers + "), got " + count);
@@ -928,6 +930,8 @@ public class InnerPage implements DataPage {
      */
     public TupleLiteral movePointersRight(InnerPage rightSibling, int count,
                                           Tuple parentKey) {
+
+        System.out.println("************************************");
 
         if (count < 0 || count > numPointers) {
             throw new IllegalArgumentException("count must be in range [0, " +

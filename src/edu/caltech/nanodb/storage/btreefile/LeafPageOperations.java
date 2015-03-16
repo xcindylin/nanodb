@@ -695,6 +695,8 @@ public class LeafPageOperations {
         newLeaf.setNextPageNo(leaf.getNextPageNo());
         leaf.setNextPageNo(newLeaf.getPageNo());
 
+        System.out.println(pagePath.toString());
+
         // Determine number of tuples to move, move the tuples, and adds tuple
         // to appropriate page
         int numTuples = leaf.getNumTuples();
@@ -709,7 +711,7 @@ public class LeafPageOperations {
             rightLeafStart = newLeaf.getPageNo();
             DBPage rootPage = fileOps.getNewDataPage();
             InnerPage.init(rootPage, leaf.getSchema(), leftLeafStart,
-                    result, rightLeafStart);
+                    newLeaf.getTuple(0), rightLeafStart);
 
             // Update root node
             DBPage dbpHeader =
@@ -725,7 +727,7 @@ public class LeafPageOperations {
             rightLeafStart = newLeaf.getPageNo();
             innerPageOps.addTuple(parentInnerPage,
                     pagePath.subList(0, pathSize - 1),
-                    leftLeafStart, result, rightLeafStart);
+                    leftLeafStart, newLeaf.getTuple(0), rightLeafStart);
         }
 
         return result;

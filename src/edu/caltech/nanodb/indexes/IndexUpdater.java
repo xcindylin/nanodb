@@ -128,29 +128,27 @@ public class IndexUpdater implements RowEventListener {
                 IndexInfo indexInfo = indexManager.openIndex(tblFileInfo,
                     indexDef.getIndexName());
 
-                // TODO:  Implement!
-                //
-                // If the index is a unique index, then verify that there
-                // isn't already a tuple in the index with the same values
-                // (excluding the tuple-pointer column, of course).
-                //
-                // Finally, add a new tuple to the index, including the
-                // tuple-pointer to the tuple in the table.
-
+                // Check whether the index that we are looking at is unique
                 TupleFile tupleFile = indexInfo.getTupleFile();
                 boolean isUnique = false;
                 TableConstraintType constraintType = indexDef.getConstraintType();
                 if (constraintType != null)
                     isUnique = constraintType.isUnique();
 
-//                System.out.println(constraintType.toString());
-
+                // If it is unique then we want to see if there is another
+                // tuple in the tuple file with the same value
+                // If there is, throw out an error because we want to preserve
+                // uniqueness
                 if (isUnique) {
-//                    System.out.println("unique");
+                    // Make the search key from the tuple, but do not include
+                    // file pointer
                     TupleLiteral searchKey =
-                            IndexUtils.makeSearchKeyValue(indexDef, ptup, false);
+                            IndexUtils.makeSearchKeyValue(indexDef,
+                                    ptup, false);
                     PageTuple foundTuple = IndexUtils.findTupleInIndex(searchKey,
                             tupleFile);
+
+                    // If found tuple then we throw an error
                     if (foundTuple != null) {
                         throw new EventDispatchException("Couldn't update " +
                         "index " + indexDef.getIndexName() + " for table " +
@@ -159,9 +157,9 @@ public class IndexUpdater implements RowEventListener {
                     }
                 }
 
+                // Make the new tuple and add it to the file
                 TupleLiteral indexTuple =IndexUtils.makeSearchKeyValue(indexDef,
                         ptup, true);
-
                 tupleFile.addTuple(indexTuple);
             }
             catch (IOException e) {
@@ -194,20 +192,15 @@ public class IndexUpdater implements RowEventListener {
                 IndexInfo indexInfo = indexManager.openIndex(tblFileInfo,
                     indexDef.getIndexName());
 
-                // TODO:  Implement!
-                //
-                // Find and remove the entry in this index, corresponding to
-                // the passed-in tuple.
-                //
-                // If the tuple doesn't appear in this index, throw an
-                // IllegalStateException to indicate that the index is bad.
-
+                // Get the actual file
                 TupleFile tupleFile = indexInfo.getTupleFile();
+                // Try to find the specified tuple to delete
                 TupleLiteral indexTuple =
                         IndexUtils.makeSearchKeyValue(indexDef, ptup, true);
                 PageTuple foundTuple = IndexUtils.findTupleInIndex(indexTuple,
                         tupleFile);
 
+                // If found, delete it, if not then throw an error
                 if (foundTuple != null) {
                     tupleFile.deleteTuple(foundTuple);
                 }

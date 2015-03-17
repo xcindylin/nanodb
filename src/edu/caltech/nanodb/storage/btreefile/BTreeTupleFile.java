@@ -445,18 +445,6 @@ public class BTreeTupleFile implements SequentialTupleFile {
         if (pagePath != null)
             pagePath.add(rootPageNo);
 
-        /* TODO:  IMPLEMENT THE REST OF THIS METHOD.
-         *
-         * Don't forget to update the page-path as you navigate the index
-         * structure, if it is provided by the caller.
-         *
-         * Use the TupleComparator.comparePartialTuples() method for comparing
-         * the index's keys with the passed-in search key.
-         *
-         * It's always a good idea to code defensively:  if you see an invalid
-         * page-type, flag it with an IOException, as done earlier.
-         */
-
         while (pageType != BTREE_LEAF_PAGE) {
             // Get info about the inner page and use it to determine the
             // pointer to the next page (we set the initial value to -1

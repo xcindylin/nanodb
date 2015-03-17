@@ -704,8 +704,6 @@ public class InnerPage implements DataPage {
     public TupleLiteral movePointersLeft(InnerPage leftSibling, int count,
                                          Tuple parentKey) {
 
-        System.out.println("************************************");
-
         if (count < 0 || count > numPointers) {
             throw new IllegalArgumentException("count must be in range (0, " +
                 numPointers + "), got " + count);
@@ -724,37 +722,36 @@ public class InnerPage implements DataPage {
             }
         }
 
-        /* TODO:  IMPLEMENT THE REST OF THIS METHOD.
-         *
-         * You can use PageTuple.storeTuple() to write a key into a DBPage.
-         *
-         * The DBPage.write() method is useful for copying a large chunk of
-         * data from one DBPage to another.
-         *
-         * Your implementation also needs to properly handle the incoming
-         * parent-key, and produce a new parent-key as well.
-         */
-//        logger.error("NOT YET IMPLEMENTED:  movePointersLeft()");
 
+        // Get the page of the left sibling
         DBPage leftPage = leftSibling.getDBPage();
+
+        // If there is a parent key then we write to the left sibling
         if (parentKeyLen != 0)
             PageTuple.storeTuple(leftPage, leftSibling.getUsedSpace(), schema,
                     parentKey);
 
+        // We want to read the entries we want to move from the right siblig
+        // to the left sibling
         int rightEnd = pointerOffsets[count - 1] + 4;
         int len = rightEnd - OFFSET_FIRST_POINTER;
         byte[] rightEntries = new byte[len];
         dbPage.read(OFFSET_FIRST_POINTER, rightEntries);
         leftPage.write(leftSibling.getUsedSpace() + parentKeyLen, rightEntries);
 
+        // Replace the parent key with the key to the right of the last pointer
+        // moved
         TupleLiteral newParentKey = null;
         if (count > 0) {
             newParentKey = new TupleLiteral(keys[count - 1]);
         }
 
+        // Now that we moved the data from the right sibling, we need to
+        // shift the rest of the data to the beginning
         dbPage.moveDataRange(pointerOffsets[count], OFFSET_FIRST_POINTER,
                 endOffset - pointerOffsets[count]);
 
+        // Update pointers
         dbPage.writeShort(OFFSET_NUM_POINTERS, numPointers - count);
         leftPage.writeShort(OFFSET_NUM_POINTERS,
                 leftSibling.getNumPointers() + count);
@@ -931,8 +928,6 @@ public class InnerPage implements DataPage {
     public TupleLiteral movePointersRight(InnerPage rightSibling, int count,
                                           Tuple parentKey) {
 
-        System.out.println("************************************");
-
         if (count < 0 || count > numPointers) {
             throw new IllegalArgumentException("count must be in range [0, " +
                 numPointers + "), got " + count);
@@ -964,17 +959,6 @@ public class InnerPage implements DataPage {
             }
         }
 
-        /* TODO:  IMPLEMENT THE REST OF THIS METHOD.
-         *
-         * You can use PageTuple.storeTuple() to write a key into a DBPage.
-         *
-         * The DBPage.write() method is useful for copying a large chunk of
-         * data from one DBPage to another.
-         *
-         * Your implementation also needs to properly handle the incoming
-         * parent-key, and produce a new parent-key as well.
-         */
-//        logger.error("NOT YET IMPLEMENTED:  movePointersRight()");
 
         // Calculate the amount of bytes to shift the right sibling to make
         // room for the new pointers / tuples
@@ -989,20 +973,26 @@ public class InnerPage implements DataPage {
         rightPage.moveDataRange(rightStart, rightStart + rightShiftSize,
                 rightSibling.getSpaceUsedByEntries());
 
+        // Read the bytes from the left sibling and write them to the right
+        // sibling
         byte[] leftEntries = new byte[len];
         dbPage.read(startOffset, leftEntries);
         rightPage.write(rightStart, leftEntries);
 
+        // If the current parent key length is 0
+        // Then there is not parent key to write, so we skip writing
         if (parentKeyLen != 0)
             PageTuple.storeTuple(rightPage, rightStart + len,
                     schema, parentKey);
 
+        // Create the new parent key, which is the key to the left of the
+        // last pointer we move
         TupleLiteral newParentKey = null;
         if (startPointerIndex > 0) {
             newParentKey = new TupleLiteral(keys[startPointerIndex - 1]);
         }
 
-
+        // Update the counts of the number of pointers
         dbPage.writeShort(OFFSET_NUM_POINTERS, numPointers - count);
         rightPage.writeShort(OFFSET_NUM_POINTERS,
                 rightSibling.getNumPointers() + count);

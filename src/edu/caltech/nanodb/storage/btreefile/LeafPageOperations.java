@@ -342,13 +342,12 @@ public class LeafPageOperations {
         // Figure out where the new tuple-value goes in the leaf page.
 
         int newTupleSize = newTuple.getStorageSize();
-//        System.out.println(leaf.getFreeSpace());
         if (leaf.getFreeSpace() <= newTupleSize) {
-//        if (leaf.getFreeSpace() <= 8176) {
             // Try to relocate tuples from this leaf to either sibling,
             // or if that can't happen, split the leaf page into two.
             result = relocateTuplesAndAddTuple(leaf, pagePath, newTuple);
             if (result == null)
+
                 result = splitLeafAndAddTuple(leaf, pagePath, newTuple);
         }
         else {
@@ -672,30 +671,15 @@ public class LeafPageOperations {
             logger.debug("    Old next-page:  " + leaf.getNextPageNo());
         }
 
-        System.out.println("Splitting leaf-page " + leaf.getPageNo() +
-                " into two leaves.");
-        System.out.println("    Old next-page:  " + leaf.getNextPageNo());
-
         // Get a new blank page in the index, with the same parent as the
         // leaf-page we were handed.
 
         DBPage newDBPage = fileOps.getNewDataPage();
         LeafPage newLeaf = LeafPage.init(newDBPage, tupleFile.getSchema());
 
-        /* TODO:  IMPLEMENT THE REST OF THIS METHOD.
-         *
-         * The LeafPage class provides some helpful operations for moving leaf-
-         * entries to a left or right sibling.
-         *
-         * The parent page must also be updated.  If the leaf node doesn't have
-         * a parent, the tree's depth will increase by one level.
-         */
-
         // Update pointers on the two leaves
         newLeaf.setNextPageNo(leaf.getNextPageNo());
         leaf.setNextPageNo(newLeaf.getPageNo());
-
-        System.out.println(pagePath.toString());
 
         // Determine number of tuples to move, move the tuples, and adds tuple
         // to appropriate page

@@ -29,6 +29,39 @@ setup_testSelectProject = \
     INSERT INTO test_select_project VALUES ( 6,   'blue',   50 );
 
 #================================================================================
+# SIMPLE SEMI AND ANTI JOINS
+#
+
+# This setup SQL is used for semi and anti join test case
+setup_testSemiAntiJoins = \
+    CREATE TABLE test_join_a ( \
+        a INTEGER, \
+        b VARCHAR(20) \
+    ); \
+    INSERT INTO test_join_a VALUES (1,    'red'); \
+    INSERT INTO test_join_a VALUES (3,     NULL); \
+    INSERT INTO test_join_a VALUES (4,  'green'); \
+    INSERT INTO test_join_a VALUES (5, 'orange'); \
+    INSERT INTO test_join_a VALUES (5, 'yellow'); \
+    CREATE TABLE test_join_b ( \
+        a INTEGER, \
+        b VARCHAR(20) \
+    ); \
+    INSERT INTO test_join_b VALUES (1, 'yellow'); \
+    INSERT INTO test_join_b VALUES (1, 'orange'); \
+    INSERT INTO test_join_b VALUES (2,  'green'); \
+    INSERT INTO test_join_b VALUES (3,     NULL); \
+    INSERT INTO test_join_b VALUES (5,    'red'); \
+    CREATE TABLE test_join_c ( \
+        a INTEGER, \
+        b VARCHAR(20) \
+    ); \
+    CREATE TABLE test_join_d ( \
+        a INTEGER, \
+        b VARCHAR(20) \
+    );
+
+#================================================================================
 # SIMPLE INNER AND OUTER JOINS
 #
 
@@ -60,6 +93,7 @@ setup_testSimpleJoins = \
         a INTEGER, \
         b VARCHAR(20) \
     );
+
 #================================================================================
 # INDEXES
 #

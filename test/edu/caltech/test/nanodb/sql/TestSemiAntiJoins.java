@@ -9,8 +9,8 @@ import edu.caltech.nanodb.server.NanoDBServer;
 
 /**
  * This class exercises the database with some simple <tt>JOIN</tt>
- * statements against a two tables, to see if simple semijoin
- * and antijoin statements work properly.
+ * statements against a two tables, to see if simple semi join
+ * and anti join statements work properly.
  */
 @Test
 public class TestSemiAntiJoins extends SqlTestCase {
@@ -69,6 +69,20 @@ public class TestSemiAntiJoins extends SqlTestCase {
     }
 
     /**
+     * This test performs a simple <tt>SEMI JOIN</tt> statement
+     * with the right and left tables empty to see if the query
+     * produces the expected results.
+     *
+     * @throws Exception if any query parsing or execution issues occur.
+     */
+    public void testSemiJoinEmpty() throws Throwable {
+        CommandResult result = server.doCommand(
+                "SELECT * FROM test_join_c INNER JOIN test_join_d" +
+                        " ON test_join_c.a = test_join_d.a", true);
+        assert result.getTuples().size() == 0;
+    }
+
+    /**
      * This test performs a simple <tt>ANTI JOIN</tt> statement
      * without empty tables to see if the query produces the
      * expected results. Also tests for when a given row of one
@@ -122,5 +136,20 @@ public class TestSemiAntiJoins extends SqlTestCase {
                 "SELECT * FROM test_join_a ANTI JOIN test_join_c" +
                         " ON test_join_a.a = test_join_c.a", true);
         assert checkOrderedResults(expected, result);
+    }
+
+
+    /**
+     * This test performs a simple <tt>ANTI JOIN</tt> statement
+     * with the right and left tables empty to see if the query
+     * produces the expected results.
+     *
+     * @throws Exception if any query parsing or execution issues occur.
+     */
+    public void testAntiJoinEmpty() throws Throwable {
+        CommandResult result = server.doCommand(
+                "SELECT * FROM test_join_c INNER JOIN test_join_d" +
+                        " ON test_join_c.a = test_join_d.a", true);
+        assert result.getTuples().size() == 0;
     }
 }

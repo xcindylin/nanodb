@@ -191,6 +191,13 @@ public class CostBasedJoinPlanner implements Planner {
             planNode.prepare();
         }
 
+        // If we have a limit clause, then we call the LimitOffsetNode
+        if (selClause.getLimit() > 0) {
+            planNode = new LimitOffsetNode(planNode, selClause.getLimit(),
+                    selClause.getOffset());
+            planNode.prepare();
+        }
+
         return planNode;
 
     }

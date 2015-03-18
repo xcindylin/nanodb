@@ -34,13 +34,13 @@
     <classes>
       <class name="edu.caltech.test.nanodb.storage.btreefile.TestBTreeFile">
         <methods>
-          <include name="testBTreeTableOnePageInsert" />
+           <include name="testBTreeTableOnePageInsert" />
           <include name="testBTreeTableTwoPageInsert" />
-          <include name="testBTreeTableTwoLevelInsert" />
-          <include name="testBTreeTableThreeLevelInsert" />
+           <include name="testBTreeTableTwoLevelInsert" />
+           <include name="testBTreeTableThreeLevelInsert" />
         </methods>
       </class>
-      <class name="edu.caltech.test.nanodb.indexes.TestIndexOps">
+       <class name="edu.caltech.test.nanodb.indexes.TestIndexOps">
         <methods>
           <include name="testCreateNormalIndex" />
           <include name="testCreateSameColIndex" />

@@ -8,6 +8,8 @@ import edu.caltech.nanodb.relations.Schema;
 import edu.caltech.nanodb.relations.SchemaNameException;
 
 import java.sql.Date;
+import java.sql.Time;
+import java.time.LocalTime;
 
 
 /**
@@ -166,6 +168,9 @@ public class ArithmeticOperator extends Expression {
         else if (coerced.value1 instanceof Long) {
             result = evalLongs(type, (Long) coerced.value1, (Long) coerced.value2);
         }
+        else if (coerced.value1 instanceof Time) {
+            result = evalTimes(type, (Time) coerced.value1, (Time) coerced.value2);
+        }
         else {
             assert coerced.value1 instanceof Integer;
             result = evalIntegers(type, (Integer) coerced.value1, (Integer) coerced.value2);
@@ -227,6 +232,39 @@ public class ArithmeticOperator extends Expression {
         return Double.valueOf(result);
     }
 
+    /**
+     * This helper implements the arithmetic operations for <tt>Time</tt>
+     * values.
+     *
+     * @param type the arithmetic operation to perform
+     * @param aObj the first operand value for the operation
+     * @param bObj the second operand value for the operation
+     *
+     * @return the result of the arithmetic operation
+     *
+     * @throws ExpressionException if the operand type is unrecognized
+     */
+    @SuppressWarnings( "deprecation" )
+    private static Time evalTimes(Type type, Time aObj, Time bObj) {
+        LocalTime r = aObj.toLocalTime();
+        switch (type) {
+            case ADD:
+                r = r.plusHours(bObj.getHours());
+                r = r.plusMinutes(bObj.getMinutes());
+                r = r.plusSeconds(bObj.getSeconds());
+                break;
+
+            case SUBTRACT:
+                r = r.minusHours(bObj.getHours());
+                r = r.minusMinutes(bObj.getMinutes());
+                r = r.minusSeconds(bObj.getSeconds());
+                break;
+
+            default:
+                throw new ExpressionException("Unrecognized arithmetic type " + type);
+        }
+        return Time.valueOf(r);
+    }
 
     /**
      * This helper implements the arithmetic operations for <tt>Float</tt>

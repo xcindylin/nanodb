@@ -522,4 +522,11 @@ setup_testDate = \
         a DATE \
     ); \
     INSERT INTO test_date VALUES ('2000-05-10'); \
-    INSERT INTO test_date VALUES ('2000-07-05'); \
+    INSERT INTO test_date VALUES ('2000-07-05');
+
+setup_testTime = \
+    CREATE TABLE test_time ( \
+        a TIME \
+    ); \
+    INSERT INTO test_time VALUES ('07:20:35'); \
+    INSERT INTO test_time VALUES ('14:31:40');

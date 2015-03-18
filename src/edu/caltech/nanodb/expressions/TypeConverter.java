@@ -2,6 +2,7 @@ package edu.caltech.nanodb.expressions;
 
 
 import java.sql.Date;
+import java.sql.Time;
 import java.util.HashMap;
 
 import edu.caltech.nanodb.relations.ColumnType;
@@ -437,9 +438,6 @@ public class TypeConverter {
             }
         }
         else {
-            Number num = (Number) obj;
-            int a = Integer.valueOf(num.intValue());
-            System.out.println(a);
             throw new TypeCastException("Cannot convert type \"" +
                     obj.getClass() + "\" to date.");
         }
@@ -447,6 +445,36 @@ public class TypeConverter {
         return result;
     }
 
+    /**
+     * This method converts input value into a java.sql.To,e
+     * value
+     * @param obj
+     * @return the input value cast to a Time
+     */
+    public static Time getTimeValue(Object obj) {
+        if (obj == null)
+            return null;
+
+        Time result;
+
+        if (obj instanceof Time) {
+            result = (Time) obj;
+        }
+        else if (obj instanceof String) {
+            try {
+                result = Time.valueOf((String) obj);
+            }
+            catch (Exception nfe) {
+                throw new TypeCastException("Cannot convert string to Time.", nfe);
+            }
+        }
+        else {
+            throw new TypeCastException("Cannot convert type \"" +
+                    obj.getClass() + "\" to Time.");
+        }
+
+        return result;
+    }
     /**
      * This function takes two arguments and coerces them to be the same numeric
      * type, for use with arithmetic operations.
@@ -492,6 +520,11 @@ public class TypeConverter {
                     obj1 = getIntegerValue(obj1);
                     obj2 = getIntegerValue(obj2);
                 }
+            }
+            else if (obj1 instanceof Time || obj2 instanceof Time) {
+                // At least one is a Time, so convert both to Time
+                obj1 = getTimeValue(obj1);
+                obj2 = getTimeValue(obj2);
             }
             else {
                 throw new TypeCastException(String.format(
@@ -540,6 +573,10 @@ public class TypeConverter {
             else if (obj1 instanceof Date || obj2 instanceof Date) {
                 obj1 = getDateValue(obj1);
                 obj2 = getDateValue(obj2);
+            }
+            else if (obj1 instanceof Time || obj2 instanceof Time) {
+                obj1 = getTimeValue(obj1);
+                obj2 = getTimeValue(obj2);
             }
             else if (obj1 instanceof Number || obj2 instanceof Number) {
                 // Reuse the same logic in the arithmetic coercion code.

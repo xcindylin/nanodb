@@ -2,6 +2,7 @@ package edu.caltech.nanodb.storage;
 
 
 import java.sql.Date;
+import java.sql.Time;
 import java.util.Collections;
 import java.util.List;
 
@@ -452,6 +453,10 @@ public abstract class PageTuple implements Tuple {
                 value = Date.valueOf(dbPage.readFixedSizeString(offset, 10));
                 break;
 
+            case TIME:
+                value = Time.valueOf(dbPage.readFixedSizeString(offset, 8));
+                break;
+
             default:
                 throw new UnsupportedOperationException(
                     "Cannot currently store type " + colType.getBaseType());
@@ -690,6 +695,10 @@ public abstract class PageTuple implements Tuple {
 
         case DATE:
             size = 10;
+            break;
+
+        case TIME:
+            size = 8;
             break;
 
         default:

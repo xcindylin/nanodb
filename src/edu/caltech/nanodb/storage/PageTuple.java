@@ -1,6 +1,7 @@
 package edu.caltech.nanodb.storage;
 
 
+import java.sql.Date;
 import java.util.Collections;
 import java.util.List;
 
@@ -447,6 +448,10 @@ public abstract class PageTuple implements Tuple {
                                         dbPage.readUnsignedShort(offset + 2));
                 break;
 
+            case DATE:
+                value = Date.valueOf(dbPage.readFixedSizeString(offset, 10));
+                break;
+
             default:
                 throw new UnsupportedOperationException(
                     "Cannot currently store type " + colType.getBaseType());
@@ -681,6 +686,10 @@ public abstract class PageTuple implements Tuple {
             // File-pointers are comprised of a two-byte page number and a
             // two-byte offset in the page.
             size = 4;
+            break;
+
+        case DATE:
+            size = 10;
             break;
 
         default:

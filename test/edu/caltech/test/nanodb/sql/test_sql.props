@@ -516,3 +516,10 @@ setup_testHaving = \
     INSERT INTO test_having VALUES (26, 4190, 3180, 98.61913223134815); \
     INSERT INTO test_having VALUES (39, 6470, 16604, 86.22655630090722); \
     INSERT INTO test_having VALUES (8, 4930, 11387, 89.96368130774295);
+
+setup_testDate = \
+    CREATE TABLE test_date ( \
+        a DATE \
+    ); \
+    INSERT INTO test_date VALUES ('2000-05-10'); \
+    INSERT INTO test_date VALUES ('2000-07-05'); \

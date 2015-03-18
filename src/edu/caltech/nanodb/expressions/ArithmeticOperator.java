@@ -7,6 +7,8 @@ import edu.caltech.nanodb.relations.SQLDataType;
 import edu.caltech.nanodb.relations.Schema;
 import edu.caltech.nanodb.relations.SchemaNameException;
 
+import java.sql.Date;
+
 
 /**
  * This class implements simple binary arithmetic operations.  The supported

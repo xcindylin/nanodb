@@ -3,6 +3,7 @@ package edu.caltech.nanodb.storage;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.sql.Date;
 import java.util.Arrays;
 
 import org.apache.log4j.Logger;
@@ -1011,6 +1012,10 @@ public class DBPage implements Pinnable {
                                     readUnsignedShort(position + 2));
             break;
 
+        case DATE:
+            value = Date.valueOf(readFixedSizeString(position, 10));
+            break;
+
         default:
             throw new UnsupportedOperationException(
                 "Cannot currently read type " + colType.getBaseType());
@@ -1127,6 +1132,15 @@ public class DBPage implements Pinnable {
                 break;
             }
 
+        case DATE:
+            {
+                String strVal = TypeConverter.getStringValue(value);
+                // Make sure date is in correct format by converting str to date
+                Date dateval = Date.valueOf(strVal);
+                writeFixedSizeString(position, strVal, strVal.length());
+                dataSize = strVal.length();
+                break;
+            }
         default:
             throw new UnsupportedOperationException(
                 "Cannot currently store type " + colType.getBaseType());

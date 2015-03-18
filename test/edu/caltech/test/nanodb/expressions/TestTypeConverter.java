@@ -7,6 +7,9 @@ import edu.caltech.nanodb.expressions.TypeCastException;
 import edu.caltech.nanodb.expressions.TypeConverter;
 import edu.caltech.nanodb.relations.SQLDataType;
 
+import java.lang.Object;
+import java.sql.Date;
+
 
 /**
  * This class exercises the type-converter class.
@@ -185,6 +188,23 @@ public class TestTypeConverter {
         TypeConverter.getDoubleValue("123a");
     }
 
+    public void testGetDateValue() {
+        assert TypeConverter.getDateValue(null) == null;
+        assert Date.valueOf("2000-10-10").equals(TypeConverter.getDateValue(Date.valueOf("2000-10-10")));
+    }
+
+    @Test(expectedExceptions={TypeCastException.class})
+    public void testGetDateFromBooleanError() {
+        TypeConverter.getDateValue(Boolean.TRUE);
+    }
+
+    @Test(expectedExceptions={TypeCastException.class})
+    public void testGetDateFromObjectError() {
+        TypeConverter.getDateValue(new Object());
+    }
+
+    @Test(expectedExceptions={TypeCastException.class})
+    public void testGetDateFromStringError() { TypeConverter.getDateValue("asdf"); }
 
     public void testGetSQLType() {
         // Recognized types:

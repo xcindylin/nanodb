@@ -1,6 +1,7 @@
 package edu.caltech.nanodb.expressions;
 
 
+import java.sql.Date;
 import java.util.HashMap;
 
 import edu.caltech.nanodb.relations.ColumnType;
@@ -42,6 +43,8 @@ public class TypeConverter {
         sqlTypeMapping.put(Double.class, SQLDataType.DOUBLE);
 
         sqlTypeMapping.put(String.class, SQLDataType.VARCHAR);
+
+        sqlTypeMapping.put(Date.class, SQLDataType.DATE);
 
         // TODO:  others, in time...
     }
@@ -410,6 +413,39 @@ public class TypeConverter {
         return (obj != null ? obj.toString() : null);
     }
 
+    /**
+     * This method converts input value into a java.sql.Date
+     * value
+     * @param obj
+     * @return the input value cast to a Date
+     */
+    public static Date getDateValue(Object obj) {
+        if (obj == null)
+            return null;
+
+        Date result;
+
+        if (obj instanceof Date) {
+            result = (Date) obj;
+        }
+        else if (obj instanceof String) {
+            try {
+                result = Date.valueOf((String) obj);
+            }
+            catch (Exception nfe) {
+                throw new TypeCastException("Cannot convert string to date.", nfe);
+            }
+        }
+        else {
+            Number num = (Number) obj;
+            int a = Integer.valueOf(num.intValue());
+            System.out.println(a);
+            throw new TypeCastException("Cannot convert type \"" +
+                    obj.getClass() + "\" to date.");
+        }
+
+        return result;
+    }
 
     /**
      * This function takes two arguments and coerces them to be the same numeric
@@ -431,7 +467,9 @@ public class TypeConverter {
      */
     public static Pair coerceArithmetic(Object obj1, Object obj2)
         throws TypeCastException {
-
+        System.out.println(obj1.getClass().toString());
+        if (!(obj1 instanceof Date))
+            System.out.println("Not instance");
         if (obj1 != null && obj2 != null) {
             if (obj1 instanceof Number || obj2 instanceof Number) {
                 if (obj1 instanceof Double || obj2 instanceof Double) {
@@ -498,6 +536,10 @@ public class TypeConverter {
             if (obj1.getClass().equals(obj2.getClass())) {
                 // The two objects are already of the same type, so no need
                 // to coerce anything.
+            }
+            else if (obj1 instanceof Date || obj2 instanceof Date) {
+                obj1 = getDateValue(obj1);
+                obj2 = getDateValue(obj2);
             }
             else if (obj1 instanceof Number || obj2 instanceof Number) {
                 // Reuse the same logic in the arithmetic coercion code.

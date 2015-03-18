@@ -517,9 +517,24 @@ setup_testHaving = \
     INSERT INTO test_having VALUES (39, 6470, 16604, 86.22655630090722); \
     INSERT INTO test_having VALUES (8, 4930, 11387, 89.96368130774295);
 
+setup_testLimitOffset = \
+    CREATE TABLE test_limitoffset ( \
+        a INT \
+    ); \
+    INSERT INTO test_limitoffset VALUES (1); \
+    INSERT INTO test_limitoffset VALUES (2); \
+    INSERT INTO test_limitoffset VALUES (3); \
+    INSERT INTO test_limitoffset VALUES (4); \
+    INSERT INTO test_limitoffset VALUES (5); \
+    INSERT INTO test_limitoffset VALUES (6); \
+    INSERT INTO test_limitoffset VALUES (7); \
+    INSERT INTO test_limitoffset VALUES (8); \
+    INSERT INTO test_limitoffset VALUES (9); \
+    INSERT INTO test_limitoffset VALUES (10);
+
 setup_testDate = \
     CREATE TABLE test_date ( \
         a DATE \
     ); \
     INSERT INTO test_date VALUES ('2000-05-10'); \
-    INSERT INTO test_date VALUES ('2000-07-05'); \
+    INSERT INTO test_date VALUES ('2000-07-05');

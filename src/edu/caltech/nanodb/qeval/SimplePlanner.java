@@ -60,6 +60,7 @@ public class SimplePlanner implements Planner {
             throw new UnsupportedOperationException(
                 "Not yet implemented:  enclosing queries!");
         }
+
         // Parse through the fromClause and handle all cases
         FromClause fromClause = selClause.getFromClause();
         PlanNode planNode = handleFromClause(selClause, fromClause);
@@ -94,6 +95,13 @@ public class SimplePlanner implements Planner {
         List<OrderByExpression> orderByExprs = selClause.getOrderByExprs();
         if (orderByExprs != null && !orderByExprs.isEmpty()) {
             planNode = new SortNode(planNode, orderByExprs);
+            planNode.prepare();
+        }
+
+        // If we have a limit clause, then we call the LimitOffsetNode
+        if (selClause.getLimit() > 0) {
+            planNode = new LimitOffsetNode(planNode, selClause.getLimit(),
+                    selClause.getOffset());
             planNode.prepare();
         }
 
